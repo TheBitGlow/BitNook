@@ -1,38 +1,106 @@
-# Dependencies
+# ==========================================
+# 1. 依赖目录 (Dependencies)
+# ==========================================
 node_modules/
-.pnp
+/.pnp
 .pnp.js
+.yarn/install-state.gz
 
-# Testing
-coverage/
+# ==========================================
+# 2. 环境变量与安全密钥 (Env & Secrets) - 极高优先级！
+# ==========================================
+# 忽略所有真实环境变量配置
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+*.env.local
 
-# Next.js
+# 明确放行环境配置模板，供团队和开源用户参考
+!.env.example
+
+# 密钥与证书文件
+*.pem
+*.key
+*.cert
+*.crt
+
+# ==========================================
+# 3. Next.js 构建产物与缓存 (Build & Cache)
+# ==========================================
 .next/
 out/
-
-# Production
 build/
+dist/
+.turbo/
 
-# Misc
-.DS_Store
-*.pem
-
-# Debug
+# ==========================================
+# 4. 日志与调试信息 (Logs & Debug)
+# ==========================================
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
 
-# Local env files
-.env
-.env*.local
+# ==========================================
+# 5. 代码质量与测试 (Testing & Lint)
+# ==========================================
+coverage/
+.nyc_output/
 
-# Vercel
-.vercel
-
-# TypeScript
+# ==========================================
+# 6. TypeScript 缓存
+# ==========================================
 *.tsbuildinfo
 next-env.d.ts
 
-# Prisma
+# ==========================================
+# 7. 操作系统自动生成文件 (OS Generated)
+# ==========================================
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ==========================================
+# 8. IDE 与编辑器配置文件 (IDE & Editors)
+# ==========================================
+# JetBrains (WebStorm, IDEA 等)
+.idea/
+
+# VS Code（忽略个人专属配置，保留团队共享推荐配置）
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-project
+*.sublime-workspace
+
+# ==========================================
+# 9. 本地数据库与临时数据 (Databases & SQLite)
+# ==========================================
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
 prisma/*.db
 prisma/*.db-journal
+
+# ==========================================
+# 10. 部署平台临时文件 (Vercel)
+# ==========================================
+.vercel
