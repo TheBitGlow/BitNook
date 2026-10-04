@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* 主背景 - 深宇宙黑 */
+  --bg-primary: #080B14;
+  --bg-secondary: #0D1117;
+  --bg-card: #111827;
+  --bg-card-hover: #1A2235;
+
+  /* 品牌色 - 星云紫蓝渐变 */
+  --brand-primary: #6366F1;
+  --brand-secondary: #8B5CF6;
+  --brand-accent: #06B6D4;
+  --brand-gradient: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #06B6D4 100%);
+
+  /* 功能色 */
+  --color-gold: #F59E0B;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-info: #3B82F6;
+
+  /* 文字层级 */
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #475569;
+  --text-link: #818CF8;
+
+  /* 边框 */
+  --border-default: rgba(99, 102, 241, 0.15);
+  --border-hover: rgba(99, 102, 241, 0.4);
+  --border-focus: rgba(99, 102, 241, 0.8);
+
+  /* 分类色标 */
+  --cat-daily: #3B82F6;
+  --cat-finance: #10B981;
+  --cat-health: #EF4444;
+  --cat-convert: #F59E0B;
+  --cat-network: #8B5CF6;
+  --cat-ai: #06B6D4;
+  --cat-game: #EC4899;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+body {
+  font-family: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 玻璃拟态卡片 */
+.glass-card {
+  background: rgba(17, 24, 39, 0.8);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(26, 34, 53, 0.9);
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px rgba(99, 102, 241, 0.15);
+}
+
+/* 品牌渐变按钮 */
+.btn-gradient {
+  background: var(--brand-gradient);
+  border: none;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+  transform: scale(1.02);
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+}
+
+/* 分类标签颜色 */
+.cat-daily { color: var(--cat-daily); }
+.cat-finance { color: var(--cat-finance); }
+.cat-health { color: var(--cat-health); }
+.cat-convert { color: var(--cat-convert); }
+.cat-network { color: var(--cat-network); }
+.cat-ai { color: var(--cat-ai); }
+.cat-game { color: var(--cat-game); }
+
+.bg-cat-daily { background-color: var(--cat-daily); }
+.bg-cat-finance { background-color: var(--cat-finance); }
+.bg-cat-health { background-color: var(--cat-health); }
+.bg-cat-convert { background-color: var(--cat-convert); }
+.bg-cat-network { background-color: var(--cat-network); }
+.bg-cat-ai { background-color: var(--cat-ai); }
+.bg-cat-game { background-color: var(--cat-game); }
