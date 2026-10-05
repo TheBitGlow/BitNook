@@ -2,11 +2,13 @@
 
 import { useState, useMemo } from 'react'
 import ToolLayout from '@/components/tools/ToolLayout'
-import { Activity, Scale, Award, Info } from 'lucide-react'
+import { Scale, Copy, Check } from 'lucide-react'
+import { trackEvent } from '@/lib/analytics'
 
 export default function BMIPage() {
   const [height, setHeight] = useState<number>(172)
   const [weight, setWeight] = useState<number>(66)
+  const [copied, setCopied] = useState(false)
 
   const result = useMemo(() => {
     if (height <= 0 || weight <= 0) return null
@@ -17,28 +19,33 @@ export default function BMIPage() {
     // Chinese standard (WS/T 428-2013)
     let category = '正常'
     let color = '#10B981'
-    let bg = 'rgba(16,185,129,0.15)'
+    let bg = 'rgba(16,185,129,0.1)'
+    let border = 'rgba(16,185,129,0.3)'
     let advice = '处于健康体重区间，请继续保持均衡饮食与规律运动。'
 
     if (bmiVal < 18.5) {
       category = '偏瘦 (体重过低)'
       color = '#3B82F6'
-      bg = 'rgba(59,130,246,0.15)'
+      bg = 'rgba(59,130,246,0.1)'
+      border = 'rgba(59,130,246,0.3)'
       advice = '体重低于标准范围，建议适当增加优质蛋白质与能量摄入，排除消化吸收等健康问题。'
     } else if (bmiVal < 24.0) {
       category = '健康正常'
       color = '#10B981'
-      bg = 'rgba(16,185,129,0.15)'
+      bg = 'rgba(16,185,129,0.1)'
+      border = 'rgba(16,185,129,0.3)'
       advice = '处于适宜体质指数范围，患心血管与代谢疾病的相对风险处于最低基线。'
     } else if (bmiVal < 28.0) {
       category = '超重 (偏胖)'
       color = '#F59E0B'
-      bg = 'rgba(245,158,11,0.15)'
+      bg = 'rgba(245,158,11,0.1)'
+      border = 'rgba(245,158,11,0.3)'
       advice = '体质指数超出健康范围，建议减少高糖高油饮食，每周保持至少 150 分钟中等强度有氧运动。'
     } else {
       category = '肥胖'
       color = '#EF4444'
-      bg = 'rgba(239,68,68,0.15)'
+      bg = 'rgba(239,68,68,0.1)'
+      border = 'rgba(239,68,68,0.3)'
       advice = '已达临床肥胖标准，可能增加高血压、2型糖尿病与脂肪肝风险，建议咨询临床医生进行系统减重指导。'
     }
 
@@ -51,11 +58,22 @@ export default function BMIPage() {
       category,
       color,
       bg,
+      border,
       advice,
       minIdealWeight,
       maxIdealWeight,
     }
   }, [height, weight])
+
+  const copySummary = () => {
+    if (!result) return
+    const text = `【BMI 体质指数测评】\n身高: ${height} cm\n体重: ${weight} kg\nBMI指数: ${result.bmi}\n健康状态: ${result.category}\n推荐理想体重范围: ${result.minIdealWeight} ~ ${result.maxIdealWeight} kg\n测评参考标准: 国家卫健委 WS/T 428-2013`
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      trackEvent('copy', { toolSlug: 'bmi' })
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   const faq = [
     {
@@ -79,7 +97,7 @@ export default function BMIPage() {
     '准确测量并输入赤足身高（cm）与清晨空腹体重（kg）。',
     '系统根据国家卫健委《中国成人体重判定》行业标准实时计算 BMI 指数。',
     '对照健康区间色卡了解当前所处阶段及对应身高的理想体重范围（kg）。',
-    '若 BMI 超出正常范围，可参考建议调整膳食结构并安排运动计划。',
+    '点击“复制测算结果”可直接保存或发送给家人与健康顾问。',
   ]
 
   return (
@@ -106,7 +124,7 @@ export default function BMIPage() {
           </p>
           <p>
             <strong>3. 适用人群与局限性：</strong>
-            本标准专为 18 周岁及以上中国成年人设计。未成年人骨骼骨量发育迅速、孕产妇体液与胎儿重量增加、力量运动员骨骼肌比例极高，均不可直接套用本常规 BMI 切点判定健康状态。
+            本标准专为 18 周岁及以上中国成年人设计。未成年人骨骼发育迅速、孕产妇体液与胎儿重量增加、力量运动员骨骼肌比例极高，均不可直接套用本常规 BMI 切点判定健康状态。
           </p>
         </>
       }
@@ -116,10 +134,10 @@ export default function BMIPage() {
     >
       <div className="space-y-6">
         {/* Input Card */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
+        <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 sm:p-8 shadow-sm">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-slate-400 mb-2">
                 身高 (cm)
               </label>
               <input
@@ -128,12 +146,12 @@ export default function BMIPage() {
                 max="250"
                 value={height}
                 onChange={(e) => setHeight(Math.max(1, Number(e.target.value)))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-center text-white focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-[#1E293B] bg-[#090D16] px-4 py-3 text-2xl font-bold font-mono text-center text-white focus:border-blue-500 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-slate-400 mb-2">
                 体重 (kg)
               </label>
               <input
@@ -143,7 +161,7 @@ export default function BMIPage() {
                 step="0.5"
                 value={weight}
                 onChange={(e) => setWeight(Math.max(1, Number(e.target.value)))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-center text-white focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-[#1E293B] bg-[#090D16] px-4 py-3 text-2xl font-bold font-mono text-center text-white focus:border-blue-500 focus:outline-none"
               />
             </div>
           </div>
@@ -153,9 +171,9 @@ export default function BMIPage() {
         {result && (
           <div
             className="rounded-2xl border p-6 text-center transition-all"
-            style={{ borderColor: result.color, backgroundColor: result.bg }}
+            style={{ borderColor: result.border, backgroundColor: result.bg }}
           >
-            <p className="text-xs uppercase tracking-wider text-[#94A3B8] mb-1">
+            <p className="text-xs uppercase tracking-wider text-slate-400 mb-1">
               您的体质指数 (BMI)
             </p>
             <p
@@ -165,49 +183,61 @@ export default function BMIPage() {
               {result.bmi}
             </p>
             <span
-              className="inline-block px-4 py-1 rounded-full text-xs font-bold my-1"
-              style={{ color: result.color, backgroundColor: 'rgba(0,0,0,0.3)' }}
+              className="inline-block px-4 py-1 rounded-full text-xs font-bold my-1 border"
+              style={{ color: result.color, borderColor: result.border, backgroundColor: 'rgba(0,0,0,0.3)' }}
             >
               {result.category}
             </span>
-            <p className="text-xs sm:text-sm text-[#CBD5E1] max-w-lg mx-auto mt-2">
+            <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto mt-2 leading-relaxed">
               {result.advice}
             </p>
 
             {/* Spectrum Bar */}
             <div className="max-w-md mx-auto mt-6">
-              <div className="h-3 rounded-full overflow-hidden flex">
-                <div className="w-[18.5%] bg-[#3B82F6]" title="偏瘦 <18.5" />
-                <div className="w-[27.5%] bg-[#10B981]" title="正常 18.5-23.9" />
-                <div className="w-[20%] bg-[#F59E0B]" title="超重 24.0-27.9" />
-                <div className="w-[34%] bg-[#EF4444]" title="肥胖 ≥28.0" />
+              <div className="h-2.5 rounded-full overflow-hidden flex bg-slate-900">
+                <div className="w-[18.5%] bg-blue-500" title="偏瘦 <18.5" />
+                <div className="w-[27.5%] bg-emerald-500" title="正常 18.5-23.9" />
+                <div className="w-[20%] bg-amber-500" title="超重 24.0-27.9" />
+                <div className="w-[34%] bg-rose-500" title="肥胖 ≥28.0" />
               </div>
-              <div className="flex justify-between text-[10px] text-[#94A3B8] mt-1.5 font-mono">
+              <div className="flex justify-between text-[10px] text-slate-400 mt-1.5 font-mono">
                 <span>偏瘦 (&lt;18.5)</span>
                 <span>正常 (18.5-23.9)</span>
                 <span>超重 (24-27.9)</span>
                 <span>肥胖 (≥28)</span>
               </div>
             </div>
+
+            {/* Copy Result Button */}
+            <div className="mt-6 pt-4 border-t border-[#1E293B]/50 flex justify-center">
+              <button
+                type="button"
+                onClick={copySummary}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#141C2E] hover:bg-[#1A243B] border border-[#1E293B] text-xs font-semibold text-white transition"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copied ? '已复制测算报告' : '复制测算结果'}</span>
+              </button>
+            </div>
           </div>
         )}
 
         {/* Ideal Weight Card */}
         {result && (
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-5 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#6366F1]/20 flex items-center justify-center">
-                <Scale className="w-5 h-5 text-[#6366F1]" />
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                <Scale className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs text-[#94A3B8]">基于您 {height}cm 身高的推荐健康体重范围</p>
+                <p className="text-xs text-slate-400">基于您 {height}cm 身高的推荐健康体重范围</p>
                 <p className="text-lg font-bold text-white font-mono">
                   {result.minIdealWeight} ~ {result.maxIdealWeight} kg
                 </p>
               </div>
             </div>
-            <div className="text-xs text-[#64748B]">
-              按 BMI 18.5 ~ 23.9 正常标准换算
+            <div className="text-xs text-slate-500 font-mono">
+              按国家 WS/T 428-2013 (18.5 ~ 23.9) 换算
             </div>
           </div>
         )}

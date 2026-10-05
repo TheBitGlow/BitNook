@@ -3,6 +3,7 @@ import { CategorySlug } from './categories'
 export type ToolStatus = 'active' | 'beta' | 'deprecated' | 'planned'
 export type ToolType = 'calculator' | 'converter' | 'generator' | 'checker' | 'utility'
 export type PrivacyMode = 'local' | 'network' | 'server'
+export type ToolTier = 'S' | 'A' | 'B'
 
 export interface ToolRegistryItem {
   slug: string
@@ -17,6 +18,7 @@ export interface ToolRegistryItem {
   status: ToolStatus
   toolType: ToolType
   privacyMode: PrivacyMode
+  tier: ToolTier
   isPremium: boolean
   seoTitle: string
   seoTitleEn: string
@@ -43,6 +45,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'utility',
     privacyMode: 'local',
+    tier: 'A',
     isPremium: false,
     seoTitle: '在线计时器与番茄钟 · 多任务专注倒数工具 - BitNook',
     seoTitleEn: 'Online Multi-Task Timer & Pomodoro Tracker - BitNook',
@@ -66,6 +69,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'utility',
     privacyMode: 'local',
+    tier: 'A',
     isPremium: false,
     seoTitle: '在线倒计时器 · 纪念日与重要目标天数倒计 - BitNook',
     seoTitleEn: 'Online Target Date Countdown Calculator - BitNook',
@@ -89,6 +93,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'utility',
     privacyMode: 'local',
+    tier: 'B',
     isPremium: false,
     seoTitle: '在线随机抽奖转盘 · 公平摇号与随机决定器 - BitNook',
     seoTitleEn: 'Online Lucky Wheel & Random Decision Picker - BitNook',
@@ -112,6 +117,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'generator',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: '安全密码生成器 · 本地高强度随机密码批量生成 - BitNook',
     seoTitleEn: 'Secure Password Generator - Cryptographically Strong - BitNook',
@@ -135,6 +141,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'utility',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: '在线字数统计与文本分析工具 · 支持中英双语 - BitNook',
     seoTitleEn: 'Online Word Counter & Character Counter - BitNook',
@@ -158,6 +165,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'A',
     isPremium: false,
     seoTitle: '日期间隔计算器 · 在线算天数与推算日期 - BitNook',
     seoTitleEn: 'Date Difference & Workdays Calculator - BitNook',
@@ -181,6 +189,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'utility',
     privacyMode: 'local',
+    tier: 'B',
     isPremium: false,
     seoTitle: '在线高精度秒表 · 支持毫秒与分圈记录 - BitNook',
     seoTitleEn: 'Online Stopwatch with Lap Records & Milliseconds - BitNook',
@@ -204,6 +213,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'utility',
     privacyMode: 'local',
+    tier: 'B',
     isPremium: false,
     seoTitle: '世界时钟 · 全球城市时差与时区对照表 - BitNook',
     seoTitleEn: 'World Clock & Global Time Zone Converter - BitNook',
@@ -229,6 +239,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: '房贷计算器2026最新版 · 等额本息与等额本金还款明细对比 - BitNook',
     seoTitleEn: 'Mortgage Calculator with Amortization Schedule - BitNook',
@@ -252,6 +263,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'converter',
     privacyMode: 'network',
+    tier: 'S',
     isPremium: false,
     seoTitle: '外汇汇率换算器 · 人民币/美元/欧元基准参考汇率 - BitNook',
     seoTitleEn: 'Currency Converter - Benchmark Reference Rates - BitNook',
@@ -275,6 +287,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'A',
     isPremium: false,
     seoTitle: '延迟退休计算器2026最新政策 · 法定退休年龄与弹性退休测算 - BitNook',
     seoTitleEn: 'Retirement Age Calculator - Progressive Policy Rules - BitNook',
@@ -298,6 +311,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: '复利计算器在线计算 · 基金定投与长期理财收益测算 - BitNook',
     seoTitleEn: 'Compound Interest & Investment Growth Calculator - BitNook',
@@ -321,6 +335,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: '工资计算器2026 · 税前税后工资与个人所得税估算 - BitNook',
     seoTitleEn: 'Salary & Net Pay Calculator - Income Tax Estimator - BitNook',
@@ -344,6 +359,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'A',
     isPremium: false,
     seoTitle: '银行存款利率计算器 · 活期定期存款利息对比 - BitNook',
     seoTitleEn: 'Bank Deposit Yield Calculator - BitNook',
@@ -367,6 +383,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'A',
     isPremium: false,
     seoTitle: '贷款比价计算器 · 多方案综合成本与利息对比 - BitNook',
     seoTitleEn: 'Loan Comparison Calculator - Side-by-Side Analysis - BitNook',
@@ -390,6 +407,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: 'ROI/IRR/NPV投资回报率计算器 · 真实现金流测算 - BitNook',
     seoTitleEn: 'ROI, IRR & NPV Calculator - Real Cash Flow Discounting - BitNook',
@@ -415,6 +433,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: 'BMI计算器在线评估 · 中国成人体质指数标准 - BitNook',
     seoTitleEn: 'BMI Calculator - Body Mass Index Evaluation - BitNook',
@@ -438,6 +457,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: 'TDEE每日热量消耗与基础代谢计算器 · 减脂增肌热量预算 - BitNook',
     seoTitleEn: 'TDEE & Basal Metabolic Rate (BMR) Calculator - BitNook',
@@ -461,6 +481,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'A',
     isPremium: false,
     seoTitle: '目标运动心率区间计算器 · 燃脂与有氧耐力心率靶区 - BitNook',
     seoTitleEn: 'Target Heart Rate Zones & Karvonen Calculator - BitNook',
@@ -484,6 +505,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'checker',
     privacyMode: 'local',
+    tier: 'A',
     isPremium: false,
     seoTitle: '血压标准对照表与日常记录 · 血压分级参考工具 - BitNook',
     seoTitleEn: 'Blood Pressure Tracker & Classification Guide - BitNook',
@@ -507,6 +529,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'utility',
     privacyMode: 'local',
+    tier: 'A',
     isPremium: false,
     seoTitle: '睡眠周期计算器 · 科学作息入睡与起床时间规划 - BitNook',
     seoTitleEn: 'Sleep Cycle & Bedtime Calculator - BitNook',
@@ -530,6 +553,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'B',
     isPremium: false,
     seoTitle: '步数换算公里距离与活动估算器 · 科学健步参考 - BitNook',
     seoTitleEn: 'Steps to Distance & Active Walking Calculator - BitNook',
@@ -553,6 +577,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'utility',
     privacyMode: 'local',
+    tier: 'B',
     isPremium: false,
     seoTitle: '每日饮水量计算器 · 科学补水规划与健康提醒 - BitNook',
     seoTitleEn: 'Daily Water Intake Calculator & Hydration Planner - BitNook',
@@ -578,6 +603,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'converter',
     privacyMode: 'local',
+    tier: 'A',
     isPremium: false,
     seoTitle: '在线颜色转换器 · HEX/RGB/HSL/CMYK色彩模式互转 - BitNook',
     seoTitleEn: 'Color Converter - HEX, RGB, HSL, CMYK Code Tool - BitNook',
@@ -601,6 +627,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'converter',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: '通用单位换算器 · 长度/重量/温度/面积/数据容量换算 - BitNook',
     seoTitleEn: 'Universal Unit Converter - Length, Weight, Area & More - BitNook',
@@ -624,6 +651,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'converter',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: '进制转换器 · 2/8/10/16进制高精度转换工具 - BitNook',
     seoTitleEn: 'Binary, Octal, Decimal, Hex Base Converter (BigInt) - BitNook',
@@ -647,6 +675,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'utility',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: '在线哈希计算器 · 本地文本与文件SHA256/SHA512校验 - BitNook',
     seoTitleEn: 'Online Hash Generator - SHA-256, SHA-512 Text & File Hashes - BitNook',
@@ -670,6 +699,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'generator',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: '在线二维码生成器 · 本地离线安全生成与高清下载 - BitNook',
     seoTitleEn: 'Offline QR Code Generator - Safe Local Generation - BitNook',
@@ -693,6 +723,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'converter',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: 'Unix时间戳转换工具 · 秒与毫秒时间戳与日期互转 - BitNook',
     seoTitleEn: 'Unix Timestamp Converter - Seconds & Milliseconds - BitNook',
@@ -718,6 +749,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'checker',
     privacyMode: 'network',
+    tier: 'A',
     isPremium: false,
     seoTitle: '在线DNS查询工具 · 域名解析A/AAAA/CNAME/MX记录查询 - BitNook',
     seoTitleEn: 'Online DNS Lookup Tool (DNS-over-HTTPS) - BitNook',
@@ -741,6 +773,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'checker',
     privacyMode: 'network',
+    tier: 'A',
     isPremium: false,
     seoTitle: 'IP地址查询与归属地检测 · 运营商与ASN信息 - BitNook',
     seoTitleEn: 'IP Geolocation & ASN Lookup Tool - BitNook',
@@ -764,6 +797,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'checker',
     privacyMode: 'server',
+    tier: 'A',
     isPremium: false,
     seoTitle: 'HTTP状态码检测工具 · 真实网站状态与响应耗时测试 - BitNook',
     seoTitleEn: 'HTTP Status Code & Website Header Checker - BitNook',
@@ -787,6 +821,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'checker',
     privacyMode: 'network',
+    tier: 'A',
     isPremium: false,
     seoTitle: 'HTTP延迟测试工具 · 网站网络连接与响应速度测算 - BitNook',
     seoTitleEn: 'HTTP Latency & Web Response Speed Test - BitNook',
@@ -810,6 +845,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'utility',
     privacyMode: 'local',
+    tier: 'B',
     isPremium: false,
     seoTitle: '浏览器网络连接状态信息 · 网络类型与下行带宽检测 - BitNook',
     seoTitleEn: 'Browser Network Information & Bandwidth Stats - BitNook',
@@ -835,6 +871,7 @@ export const TOOLS: ToolRegistryItem[] = [
     status: 'active',
     toolType: 'calculator',
     privacyMode: 'local',
+    tier: 'S',
     isPremium: false,
     seoTitle: '大模型显存计算器 · LLM GPU显存需求与量化估算 - BitNook',
     seoTitleEn: 'LLM GPU VRAM Calculator - Model Parameters & Quantization - BitNook',
@@ -866,7 +903,7 @@ export function getToolsByCategory(category: CategorySlug): ToolRegistryItem[] {
 }
 
 export function getFeaturedTools(): ToolRegistryItem[] {
-  const featuredSlugs = ['mortgage', 'salary', 'retirement', 'exchange', 'qrcode', 'password', 'unit', 'color']
+  const featuredSlugs = ['mortgage', 'salary', 'bmi', 'timestamp', 'qrcode', 'password', 'unit', 'hash']
   return featuredSlugs
     .map(slug => getToolBySlug(slug))
     .filter((t): t is ToolRegistryItem => Boolean(t))
@@ -876,4 +913,12 @@ export function getRelatedTools(tool: ToolRegistryItem): ToolRegistryItem[] {
   return tool.relatedTools
     .map(slug => getToolBySlug(slug))
     .filter((t): t is ToolRegistryItem => Boolean(t))
+}
+
+export function getToolsByTier(tier: ToolTier): ToolRegistryItem[] {
+  return TOOLS.filter(t => t.tier === tier && t.status === 'active')
+}
+
+export function getSTierTools(): ToolRegistryItem[] {
+  return getToolsByTier('S')
 }

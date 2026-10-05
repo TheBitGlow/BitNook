@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
@@ -10,7 +10,7 @@ import { ToolCard } from '@/components/tool/ToolCard'
 import { GlobalSearchModal } from '@/components/search/GlobalSearchModal'
 import { useI18n } from '@/lib/i18n'
 import { getAllCategories } from '@/config/categories'
-import { getFeaturedTools, getActiveTools } from '@/config/tools'
+import { getFeaturedTools, getActiveTools, ToolRegistryItem } from '@/config/tools'
 import { getAllGames } from '@/config/games'
 import { useRecentTools, useFavorites } from '@/lib/storage'
 import {
@@ -21,39 +21,56 @@ import {
   Zap,
   CheckCircle2,
   Gamepad2,
-  Clock,
+  History,
   Star,
 } from 'lucide-react'
 
 export default function HomePage() {
   const [searchModalOpen, setSearchModalOpen] = useState(false)
-  const { locale, t } = useI18n()
+  const [myToolsTab, setMyToolsTab] = useState<'recent' | 'favorites'>('recent')
+  const { locale } = useI18n()
   const isZh = locale === 'zh'
 
-  const categories = getAllCategories()
-  const featuredTools = getFeaturedTools().slice(0, 8)
-  const allTools = getActiveTools()
-  const games = getAllGames().slice(0, 4)
+  const categories = useMemo(() => getAllCategories(), [])
+  const featuredTools = useMemo(() => getFeaturedTools().slice(0, 8), [])
+  const allTools = useMemo(() => getActiveTools(), [])
+  const games = useMemo(() => getAllGames().slice(0, 4), [])
 
   const { recentTools } = useRecentTools()
   const { favorites } = useFavorites()
 
-  // Match recent tools
-  const recentToolItems = recentTools
-    .map((slug) => allTools.find((t) => t.slug === slug))
-    .filter((t): t is typeof allTools[0] => Boolean(t))
-    .slice(0, 4)
+  // Tool map for fast lookup
+  const toolMap = useMemo(() => {
+    const map = new Map<string, ToolRegistryItem>()
+    for (const t of allTools) {
+      map.set(t.slug, t)
+    }
+    return map
+  }, [allTools])
 
-  // Popular quick keyword tags
+  // Filtered lists for My Tools
+  const recentToolItems = useMemo(
+    () => recentTools.map((slug) => toolMap.get(slug)).filter(Boolean) as ToolRegistryItem[],
+    [recentTools, toolMap]
+  )
+
+  const favoriteToolItems = useMemo(
+    () => favorites.map((slug) => toolMap.get(slug)).filter(Boolean) as ToolRegistryItem[],
+    [favorites, toolMap]
+  )
+
+  const hasMyTools = recentToolItems.length > 0 || favoriteToolItems.length > 0
+
+  // 8 Exact Hot Keywords required by specification
   const popularKeywords = [
-    { label: isZh ? '房贷计算' : 'Mortgage', href: '/tools/finance/mortgage' },
-    { label: isZh ? 'BMI健康' : 'BMI', href: '/tools/health/bmi' },
+    { label: isZh ? '房贷' : 'Mortgage', href: '/tools/finance/mortgage' },
+    { label: 'BMI', href: '/tools/health/bmi' },
     { label: isZh ? '时间戳' : 'Timestamp', href: '/tools/convert/timestamp' },
-    { label: isZh ? '二维码生成' : 'QR Code', href: '/tools/convert/qrcode' },
-    { label: isZh ? '单位转换' : 'Unit Convert', href: '/tools/convert/unit' },
-    { label: isZh ? '强密码生成' : 'Password', href: '/tools/daily/password' },
-    { label: isZh ? '大模型显存' : 'LLM VRAM', href: '/tools/ai/gpu-calculator' },
-    { label: isZh ? '俄罗斯方块' : 'Tetris', href: '/games/tetris' },
+    { label: isZh ? '二维码' : 'QR Code', href: '/tools/convert/qrcode' },
+    { label: isZh ? '密码' : 'Password', href: '/tools/daily/password' },
+    { label: isZh ? '单位' : 'Unit', href: '/tools/convert/unit' },
+    { label: 'JSON', href: '/tools/convert/radix' },
+    { label: 'Hash', href: '/tools/convert/hash' },
   ]
 
   return (
@@ -61,17 +78,17 @@ export default function HomePage() {
       <Header />
 
       <main className="flex-1">
-        {/* ==================== HERO SECTION ==================== */}
-        <section className="relative px-4 pt-16 pb-14 sm:pt-24 sm:pb-20 border-b border-[#1E293B] bg-gradient-to-b from-[#0F1523] via-[#090D16] to-[#090D16] overflow-hidden">
+        {/* ==================== 1. BRAND / HERO ==================== */}
+        <section className="relative px-4 pt-14 pb-12 sm:pt-20 sm:pb-16 border-b border-[#1E293B] bg-[#0A0E1A] overflow-hidden">
           <div className="max-w-4xl mx-auto text-center relative z-10">
             {/* Small Eyebrow Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/25 bg-blue-500/10 text-blue-400 text-xs font-semibold mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/25 bg-blue-500/10 text-blue-400 text-xs font-semibold mb-5">
               <Sparkles className="w-3.5 h-3.5" />
               <span>All Tools, One Nook · 一站搞定，方寸万象</span>
             </div>
 
             {/* Main Title */}
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-6">
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight mb-4">
               {isZh ? (
                 <>
                   一站搞定，<br className="hidden sm:inline" />
@@ -80,32 +97,32 @@ export default function HomePage() {
               ) : (
                 <>
                   All Tools, One Nook.<br className="hidden sm:inline" />
-                  Your Everyday Utilities in One Spot.
+                  Everyday Utilities in One Spot.
                 </>
               )}
             </h1>
 
             {/* Subtitle */}
-            <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto mb-8 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto mb-7 leading-relaxed">
               {isZh
                 ? '无需下载安装，全站 45 款工具与 8 款经典游戏即开即用。纯净本地优先计算，拒绝虚假模拟，保护数据隐私。'
                 : 'Zero installation needed. 45 verified productivity utilities and classic games. Local-first computation with authentic algorithms.'}
             </p>
 
             {/* Direct Interactive Search Bar in Hero */}
-            <div className="max-w-xl mx-auto mb-6">
+            <div className="max-w-xl mx-auto mb-5">
               <button
                 type="button"
                 onClick={() => setSearchModalOpen(true)}
-                className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl border border-[#1E293B] bg-[#0F1523] hover:border-slate-600 hover:bg-[#141C2E] shadow-xl text-left transition-all duration-200 group"
+                className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl border border-[#1E293B] bg-[#0F1523] hover:border-slate-600 hover:bg-[#141C2E] shadow-lg text-left transition-all duration-200 group"
               >
                 <div className="flex items-center gap-3">
-                  <Search className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform" />
-                  <span className="text-sm text-slate-400 group-hover:text-slate-300">
-                    {isZh ? '搜索你要解决的问题（例如：房贷、BMI、时间戳、JSON）...' : 'Search tools, calculators, games (e.g. Mortgage, BMI, Hash)...'}
+                  <Search className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs sm:text-sm text-slate-400 group-hover:text-slate-300">
+                    {isZh ? '搜索你要解决的问题……' : 'Search utilities, calculations, tools...'}
                   </span>
                 </div>
-                <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono bg-[#141C2E] text-slate-400 border border-[#1E293B]">
+                <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-mono bg-[#141C2E] text-slate-400 border border-[#1E293B]">
                   ⌘K
                 </kbd>
               </button>
@@ -114,7 +131,7 @@ export default function HomePage() {
             {/* Hot keyword recommendation tags */}
             <div className="flex flex-wrap items-center justify-center gap-2 max-w-2xl mx-auto">
               <span className="text-xs text-slate-500 font-medium mr-1">
-                {isZh ? '热门工具：' : 'Popular:'}
+                {isZh ? '热门关键词：' : 'Popular:'}
               </span>
               {popularKeywords.map((kw) => (
                 <Link
@@ -129,42 +146,71 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ==================== RECENTLY USED SECTION (IF ANY) ==================== */}
-        {recentToolItems.length > 0 && (
-          <section className="px-4 py-8 max-w-7xl mx-auto border-b border-[#1E293B]">
+        {/* ==================== 2. MY TOOLS / RECENT (ONLY IF DATA EXISTS) ==================== */}
+        {hasMyTools && (
+          <section className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto border-b border-[#1E293B]">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-400" />
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                  {isZh ? '最近访问工具' : 'Recently Used'}
+              <div className="flex items-center gap-3">
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                  <span>{isZh ? '我的工具' : 'My Tools'}</span>
                 </h2>
+                <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[#0F1523] border border-[#1E293B]">
+                  <button
+                    type="button"
+                    onClick={() => setMyToolsTab('recent')}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                      myToolsTab === 'recent'
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <History className="w-3 h-3" />
+                    <span>{isZh ? '最近使用' : 'Recent'} ({recentToolItems.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMyToolsTab('favorites')}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                      myToolsTab === 'favorites'
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Star className="w-3 h-3 text-amber-400" />
+                    <span>{isZh ? '我的收藏' : 'Favorites'} ({favoriteToolItems.length})</span>
+                  </button>
+                </div>
               </div>
+              <span className="text-[11px] text-slate-500 hidden sm:inline">
+                {isZh ? '跨标签页实时同步 · 本地安全存储' : 'Real-time cross-tab sync'}
+              </span>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {recentToolItems.map((tool) => (
-                <ToolCard key={`recent-${tool.slug}`} tool={tool} />
+              {(myToolsTab === 'recent' ? recentToolItems : favoriteToolItems).slice(0, 4).map((tool) => (
+                <ToolCard key={`my-${tool.slug}`} tool={tool} />
               ))}
             </div>
           </section>
         )}
 
-        {/* ==================== POPULAR TOOLS SECTION ==================== */}
-        <section className="py-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+        {/* ==================== 3. POPULAR TOOLS (MAX 8 S-TIER) ==================== */}
+        <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
             <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Sparkles className="w-4 h-4 text-amber-400" />
+              <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                  {isZh ? '高频实用' : 'Essential Picks'}
+                  {isZh ? 'S级高频实用' : 'Essential Picks'}
                 </span>
               </div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                 {isZh ? '热门推荐工具' : 'Popular Utilities'}
               </h2>
               <p className="text-xs text-slate-400 mt-1">
                 {isZh
-                  ? '精选各领域最高频、真实可用、支持本地快速处理的日常效率小工具'
-                  : 'Handpicked high-frequency tools with authentic computation and local privacy'}
+                  ? '精选最高频、完全真实、支持本地快速处理的 8 款高价值实用工具'
+                  : 'Handpicked top 8 authentic utilities with client-side computation'}
               </p>
             </div>
 
@@ -185,20 +231,20 @@ export default function HomePage() {
         </section>
 
         {/* Mid-page Ad Slot */}
-        <div className="max-w-7xl mx-auto px-4 my-4">
+        <div className="max-w-7xl mx-auto px-4 my-2">
           <AdSlot slotId="home-mid-banner" format="horizontal" />
         </div>
 
-        {/* ==================== CATEGORIES SECTION ==================== */}
-        <section className="py-14 px-4 sm:px-6 lg:px-8 border-y border-[#1E293B] bg-[#0A0E1A]">
+        {/* ==================== 4. CATEGORIES (6 STANDARD) ==================== */}
+        <section className="py-12 px-4 sm:px-6 lg:px-8 border-y border-[#1E293B] bg-[#0A0E1A]">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white tracking-tight mb-1">
-                {isZh ? '六大分类，按需即查' : 'Browse by Category'}
+            <div className="mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-1">
+                {isZh ? '六大分类，方寸万象' : 'Browse by Category'}
               </h2>
               <p className="text-xs text-slate-400">
                 {isZh
-                  ? '所有工具统一归类管理，涵盖日常办公、财务投资、健康监测、数据转换、网络自查与 AI 辅助'
+                  ? '涵盖日常办公、财务投资、健康监测、数据转换、网络自查与 AI 辅助'
                   : 'Well-structured utilities organized by domain with strict quality assurance'}
               </p>
             </div>
@@ -212,8 +258,8 @@ export default function HomePage() {
                     href={`/tools/${cat.slug}`}
                     className="group rounded-2xl border border-[#1E293B] bg-[#0F1523] p-5 hover:border-slate-700 hover:bg-[#141C2E] transition-all flex items-start gap-4"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-blue-400 group-hover:text-white shrink-0 group-hover:scale-105 transition-transform">
-                      <DynamicIcon name={cat.iconName} className="w-6 h-6" />
+                    <div className="w-11 h-11 rounded-xl bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-blue-400 group-hover:text-white shrink-0 group-hover:scale-105 transition-transform">
+                      <DynamicIcon name={cat.iconName} className="w-5 h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2 mb-1">
@@ -235,18 +281,18 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ==================== GAMES SPOTLIGHT ==================== */}
-        <section className="py-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+        {/* ==================== 5. GAMES (MAX 4) ==================== */}
+        <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Gamepad2 className="w-4 h-4 text-pink-400" />
-                <span className="text-xs font-bold text-pink-400 uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Gamepad2 className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
                   {isZh ? '工作间歇 · 极简解压' : 'Take a Break'}
                 </span>
               </div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">
-                {isZh ? '经典休闲小游戏' : 'Classic Mini-Games'}
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                {isZh ? '精选休闲小游戏' : 'Classic Mini-Games'}
               </h2>
               <p className="text-xs text-slate-400 mt-1">
                 {isZh
@@ -257,7 +303,7 @@ export default function HomePage() {
 
             <Link
               href="/games"
-              className="text-xs font-semibold text-pink-400 hover:text-pink-300 inline-flex items-center gap-1.5 transition-colors"
+              className="text-xs font-semibold text-blue-400 hover:text-blue-300 inline-flex items-center gap-1.5 transition-colors"
             >
               <span>{isZh ? '进入游戏大厅' : 'View all games'}</span>
               <ArrowRight className="w-4 h-4" />
@@ -272,10 +318,10 @@ export default function HomePage() {
                 className="group rounded-2xl border border-[#1E293B] bg-[#0F1523] p-5 hover:border-slate-700 hover:bg-[#141C2E] transition-all flex flex-col justify-between"
               >
                 <div>
-                  <div className="w-12 h-12 rounded-xl bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-pink-400 group-hover:text-white group-hover:scale-105 transition-transform mb-4">
-                    <DynamicIcon name={game.iconName} className="w-6 h-6" />
+                  <div className="w-11 h-11 rounded-xl bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-blue-400 group-hover:text-white group-hover:scale-105 transition-transform mb-3.5">
+                    <DynamicIcon name={game.iconName} className="w-5 h-5" />
                   </div>
-                  <h3 className="font-bold text-white group-hover:text-pink-400 transition-colors text-sm mb-1.5">
+                  <h3 className="font-bold text-white group-hover:text-blue-400 transition-colors text-sm mb-1.5">
                     {isZh ? game.name : game.nameEn}
                   </h3>
                   <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
@@ -287,7 +333,7 @@ export default function HomePage() {
                   <span className="text-[11px] font-mono uppercase text-slate-500">
                     {game.category}
                   </span>
-                  <span className="text-slate-400 group-hover:text-pink-400 font-medium inline-flex items-center gap-1 text-[11px]">
+                  <span className="text-slate-400 group-hover:text-blue-400 font-medium inline-flex items-center gap-1 text-[11px]">
                     <span>{isZh ? '开始游戏' : 'Play'}</span>
                     <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                   </span>
@@ -297,15 +343,15 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ==================== WHY BITNOOK (3 PILLARS) ==================== */}
-        <section className="py-16 px-4 sm:px-6 lg:px-8 border-t border-[#1E293B] bg-[#0F1523]">
+        {/* ==================== 6. WHY BITNOOK (MAX 3 PILLARS) ==================== */}
+        <section className="py-14 px-4 sm:px-6 lg:px-8 border-t border-[#1E293B] bg-[#0F1523]">
           <div className="max-w-5xl mx-auto">
-            <div className="text-center max-w-xl mx-auto mb-12">
-              <h2 className="text-2xl font-bold text-white tracking-tight mb-2">
+            <div className="text-center max-w-xl mx-auto mb-10">
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-2">
                 {isZh ? '为什么选择 BitNook？' : 'Why BitNook?'}
               </h2>
               <p className="text-xs sm:text-sm text-slate-400">
-                {isZh ? '从工具设计之初，就坚持拒绝繁琐、伪造与隐私泄露' : 'Simple, transparent, and privacy-respecting by design'}
+                {isZh ? '坚持拒绝繁琐安装、数据伪造与隐私外泄' : 'Simple, transparent, and privacy-respecting by design'}
               </p>
             </div>
 
@@ -315,7 +361,7 @@ export default function HomePage() {
                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mb-4 shrink-0">
                   <Zap className="w-5 h-5" />
                 </div>
-                <h3 className="text-base font-bold text-white mb-2">
+                <h3 className="text-sm sm:text-base font-bold text-white mb-2">
                   {isZh ? '即开即用 · 零安装负担' : 'Instant & Frictionless'}
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
@@ -330,7 +376,7 @@ export default function HomePage() {
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 shrink-0">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
-                <h3 className="text-base font-bold text-white mb-2">
+                <h3 className="text-sm sm:text-base font-bold text-white mb-2">
                   {isZh ? '本地纯净 · 隐私数据零上传' : 'Local-First Privacy'}
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
@@ -345,7 +391,7 @@ export default function HomePage() {
                 <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-4 shrink-0">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
-                <h3 className="text-base font-bold text-white mb-2">
+                <h3 className="text-sm sm:text-base font-bold text-white mb-2">
                   {isZh ? '真实算法 · 权威数据来源' : 'Authentic Algorithms'}
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed">

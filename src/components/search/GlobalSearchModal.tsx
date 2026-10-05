@@ -1,23 +1,33 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { getActiveTools, ToolRegistryItem } from '@/config/tools'
-import { getAllGames, GameRegistryItem } from '@/config/games'
-import { useI18n } from '@/lib/i18n'
-import { useRecentTools } from '@/lib/storage'
 import DynamicIcon from '@/components/common/DynamicIcon'
-import { PrivacyBadge } from '@/components/tool/PrivacyBadge'
-import { Search, X, Command, ArrowRight, Sparkles, Clock, Gamepad2 } from 'lucide-react'
+import { ToolRegistryItem, getActiveTools, getSTierTools } from '@/config/tools'
+import { GameInfo, getAllGames } from '@/config/games'
+import { matchPinyin } from '@/config/searchIndex'
+import { useI18n } from '@/lib/i18n'
+import { useRecentTools, useFavorites } from '@/lib/storage'
+import { trackEvent } from '@/lib/analytics'
+import {
+  Search,
+  X,
+  ArrowRight,
+  Sparkles,
+  History,
+  Star,
+  Gamepad2,
+  CornerDownLeft,
+} from 'lucide-react'
 
-interface GlobalSearchModalProps {
+export interface GlobalSearchModalProps {
   isOpen: boolean
   onClose: () => void
 }
 
 type SearchItem =
   | { type: 'tool'; item: ToolRegistryItem }
-  | { type: 'game'; item: GameRegistryItem }
+  | { type: 'game'; item: GameInfo }
 
 export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
   const [query, setQuery] = useState('')
@@ -28,6 +38,7 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
   const { locale } = useI18n()
   const isZh = locale === 'zh'
   const { recentTools } = useRecentTools()
+  const { favorites } = useFavorites()
 
   const allTools = useMemo(() => getActiveTools(), [])
   const allGames = useMemo(() => getAllGames(), [])
@@ -52,7 +63,7 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
     }
   }, [isOpen])
 
-  // Filter items
+  // Multi-dimensional search matching (Chinese, English, Pinyin, Slug, Category, Keywords)
   const filteredResults = useMemo<SearchItem[]>(() => {
     const q = query.trim().toLowerCase()
     if (!q) return []
@@ -67,7 +78,8 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
           t.slug.toLowerCase().includes(q) ||
           t.category.toLowerCase().includes(q) ||
           t.keywords.some((k) => k.toLowerCase().includes(q)) ||
-          t.keywordsEn.some((k) => k.toLowerCase().includes(q))
+          t.keywordsEn.some((k) => k.toLowerCase().includes(q)) ||
+          matchPinyin(t.slug, q)
         )
       })
       .slice(0, 10)
@@ -80,7 +92,8 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
           g.nameEn.toLowerCase().includes(q) ||
           g.description.toLowerCase().includes(q) ||
           g.descriptionEn.toLowerCase().includes(q) ||
-          g.slug.toLowerCase().includes(q)
+          g.slug.toLowerCase().includes(q) ||
+          matchPinyin(g.slug, q)
         )
       })
       .slice(0, 4)
@@ -88,6 +101,13 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
 
     return [...toolResults, ...gameResults]
   }, [query, allTools, allGames])
+
+  // Track search query length
+  useEffect(() => {
+    if (query.trim().length > 1) {
+      trackEvent('search', { queryLength: query.trim().length })
+    }
+  }, [query])
 
   // Recent items when query is empty
   const recentItems = useMemo<ToolRegistryItem[]>(() => {
@@ -98,14 +118,27 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
       .slice(0, 4)
   }, [query, recentTools, allTools])
 
-  // Hot suggested items when query is empty
-  const hotItems = useMemo<ToolRegistryItem[]>(() => {
+  // Favorite items when query is empty
+  const favoriteItems = useMemo<ToolRegistryItem[]>(() => {
     if (query) return []
-    const hotSlugs = ['mortgage', 'bmi', 'timestamp', 'qrcode', 'unit', 'password', 'exchange', 'hash']
-    return hotSlugs
+    return favorites
       .map((slug) => allTools.find((t) => t.slug === slug))
       .filter((t): t is ToolRegistryItem => Boolean(t))
-  }, [query, allTools])
+      .slice(0, 4)
+  }, [query, favorites, allTools])
+
+  // Hot suggested S-tier items when query is empty
+  const hotItems = useMemo<ToolRegistryItem[]>(() => {
+    if (query) return []
+    return getSTierTools().slice(0, 6)
+  }, [query])
+
+  // Selection handler
+  const handleSelect = (item: SearchItem | { type: 'tool'; item: ToolRegistryItem }) => {
+    trackEvent('search_click', { toolSlug: item.item.slug })
+    router.push(item.item.href)
+    onClose()
+  }
 
   // Keyboard navigation inside search results
   useEffect(() => {
@@ -124,23 +157,20 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
       } else if (e.key === 'Enter') {
         e.preventDefault()
         if (filteredResults.length > 0 && filteredResults[selectedIndex]) {
-          const selected = filteredResults[selectedIndex]
-          const href = selected.type === 'tool' ? selected.item.href : selected.item.href
-          router.push(href)
-          onClose()
+          handleSelect(filteredResults[selectedIndex])
         }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, filteredResults, selectedIndex, router, onClose])
+  }, [isOpen, filteredResults, selectedIndex, onClose])
 
   if (!isOpen) return null
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 pb-6"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 sm:px-6"
       role="dialog"
       aria-modal="true"
     >
@@ -151,11 +181,11 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
         aria-hidden="true"
       />
 
-      {/* Modal Card */}
-      <div className="relative w-full max-w-2xl rounded-2xl border border-[#1E293B] bg-[#0F1523] shadow-2xl overflow-hidden z-10 flex flex-col max-h-[80vh]">
-        {/* Search Input Box */}
-        <div className="relative border-b border-[#1E293B] flex items-center px-4 py-3.5 bg-[#141C2E]/60">
-          <Search className="w-5 h-5 text-slate-400 shrink-0 mr-3" />
+      {/* Modal Dialog Card */}
+      <div className="relative w-full max-w-2xl rounded-2xl border border-[#1E293B] bg-[#0F1523] shadow-2xl overflow-hidden flex flex-col max-h-[80vh] z-10 animate-in fade-in zoom-in-95 duration-150">
+        {/* Search Header Input */}
+        <div className="relative flex items-center px-4 py-3.5 border-b border-[#1E293B] bg-[#090D16]/50">
+          <Search className="w-5 h-5 text-slate-500 mr-3 shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -166,12 +196,13 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
             }}
             placeholder={
               isZh
-                ? '搜索工具、计算器、游戏 (例如: 房贷, BMI, 时间戳, 二维码, 贪吃蛇)...'
-                : 'Search tools, calculators, games (e.g. Mortgage, BMI, QR, Hash)...'
+                ? '搜索工具、拼音 (如 fangdai, mima)、算法或小游戏...'
+                : 'Search tools, pinyin (e.g. fangdai), algorithms, games...'
             }
-            className="w-full bg-transparent text-sm sm:text-base text-white placeholder-slate-500 focus:outline-none"
+            className="w-full bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none"
+            aria-label="Search tools"
           />
-          {query && (
+          {query ? (
             <button
               type="button"
               onClick={() => {
@@ -179,148 +210,98 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
                 setSelectedIndex(0)
                 inputRef.current?.focus()
               }}
-              className="p-1 rounded-md text-slate-400 hover:text-white"
+              className="p-1 rounded-lg text-slate-500 hover:text-white transition"
               aria-label="Clear query"
             >
               <X className="w-4 h-4" />
             </button>
+          ) : (
+            <kbd className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono text-slate-500 border border-[#1E293B] bg-[#141C2E]">
+              ESC
+            </kbd>
           )}
-          <kbd className="hidden sm:inline-flex items-center gap-1 ml-2 px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">
-            ESC
-          </kbd>
         </div>
 
-        {/* Results List */}
-        <div ref={listRef} className="overflow-y-auto p-3 flex-1 scrollbar-none space-y-1">
-          {query.trim() !== '' ? (
+        {/* Results / Suggestions Container */}
+        <div ref={listRef} className="flex-1 overflow-y-auto p-3 scrollbar-none">
+          {query.trim() ? (
             filteredResults.length > 0 ? (
-              filteredResults.map((res, idx) => {
-                const isCurrent = idx === selectedIndex
-                if (res.type === 'tool') {
-                  const tool = res.item
+              <div className="space-y-1">
+                {filteredResults.map((res, idx) => {
+                  const isSelected = idx === selectedIndex
+                  const isTool = res.type === 'tool'
+                  const title = isZh ? res.item.name : res.item.nameEn
+                  const desc = isZh ? res.item.description : res.item.descriptionEn
+
                   return (
                     <button
-                      key={tool.slug}
+                      key={`${res.type}-${res.item.slug}`}
                       type="button"
-                      onClick={() => {
-                        router.push(tool.href)
-                        onClose()
-                      }}
+                      onClick={() => handleSelect(res)}
                       onMouseEnter={() => setSelectedIndex(idx)}
                       className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-all ${
-                        isCurrent
+                        isSelected
                           ? 'bg-blue-600/15 border border-blue-500/40 text-white'
-                          : 'bg-transparent hover:bg-[#141C2E] border border-transparent text-slate-300'
+                          : 'border border-transparent text-slate-300 hover:bg-[#141C2E]'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0 pr-3">
-                        <div className="w-8 h-8 rounded-lg bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-blue-400 shrink-0">
-                          <DynamicIcon name={tool.icon} className="w-4 h-4" />
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-[#141C2E] border border-[#1E293B] flex items-center justify-center shrink-0 text-blue-400">
+                          <DynamicIcon
+                            name={isTool ? (res.item as ToolRegistryItem).icon : (res.item as GameInfo).iconName}
+                            className="w-4 h-4"
+                          />
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm truncate text-white">
-                              {isZh ? tool.name : tool.nameEn}
+                            <span className="text-xs font-bold text-white truncate">{title}</span>
+                            <span className="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded bg-[#141C2E] text-slate-400 border border-[#1E293B]">
+                              {res.item.category}
                             </span>
-                            <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 shrink-0">
-                              {tool.category}
-                            </span>
+                            {isTool && (
+                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                Tier-{(res.item as ToolRegistryItem).tier}
+                              </span>
+                            )}
                           </div>
-                          <p className="text-xs text-slate-400 truncate mt-0.5">
-                            {isZh ? tool.description : tool.descriptionEn}
-                          </p>
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5">{desc}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <PrivacyBadge mode={tool.privacyMode} variant="compact" />
-                        <ArrowRight
-                          className={`w-4 h-4 transition-transform ${
-                            isCurrent ? 'text-blue-400 translate-x-0.5' : 'text-slate-600'
-                          }`}
-                        />
+                      <div className="shrink-0 flex items-center gap-1 text-[11px] text-slate-500">
+                        {isSelected && <CornerDownLeft className="w-3.5 h-3.5 text-blue-400" />}
                       </div>
                     </button>
                   )
-                } else {
-                  const game = res.item
-                  return (
-                    <button
-                      key={game.slug}
-                      type="button"
-                      onClick={() => {
-                        router.push(game.href)
-                        onClose()
-                      }}
-                      onMouseEnter={() => setSelectedIndex(idx)}
-                      className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-all ${
-                        isCurrent
-                          ? 'bg-pink-600/15 border border-pink-500/40 text-white'
-                          : 'bg-transparent hover:bg-[#141C2E] border border-transparent text-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0 pr-3">
-                        <div className="w-8 h-8 rounded-lg bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-pink-400 shrink-0">
-                          <Gamepad2 className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm truncate text-white">
-                              {isZh ? game.name : game.nameEn}
-                            </span>
-                            <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-pink-500/15 text-pink-400 shrink-0">
-                              GAME
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-400 truncate mt-0.5">
-                            {isZh ? game.description : game.descriptionEn}
-                          </p>
-                        </div>
-                      </div>
-
-                      <ArrowRight
-                        className={`w-4 h-4 transition-transform ${
-                          isCurrent ? 'text-pink-400 translate-x-0.5' : 'text-slate-600'
-                        }`}
-                      />
-                    </button>
-                  )
-                }
-              })
+                })}
+              </div>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-sm text-slate-400 mb-1">
-                  {isZh ? `未搜索到与 “${query}” 相关的工具或游戏` : `No results found for "${query}"`}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {isZh ? '可尝试搜索拼音、分类或功能简写' : 'Try searching by category or keywords'}
-                </p>
+              <div className="py-12 text-center text-slate-500">
+                <Search className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+                <p className="text-xs">{isZh ? `未找到与 “${query}” 相关的工具` : `No utilities matching "${query}"`}</p>
               </div>
             )
           ) : (
-            <div className="space-y-4 py-2">
-              {/* Recent Tools (if any) */}
+            <div className="space-y-5 p-2">
+              {/* Recent Tools Shelf */}
               {recentItems.length > 0 && (
                 <div>
-                  <div className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    <Clock className="w-3.5 h-3.5 text-blue-400" />
-                    <span>{isZh ? '最近访问' : 'Recently Visited'}</span>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 mb-2.5">
+                    <History className="w-3.5 h-3.5 text-blue-400" />
+                    <span>{isZh ? '最近访问' : 'Recently Used'}</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-1">
+                  <div className="grid grid-cols-2 gap-2">
                     {recentItems.map((tool) => (
                       <button
                         key={`recent-${tool.slug}`}
                         type="button"
-                        onClick={() => {
-                          router.push(tool.href)
-                          onClose()
-                        }}
-                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#141C2E] text-left transition-colors"
+                        onClick={() => handleSelect({ type: 'tool', item: tool })}
+                        className="flex items-center gap-2.5 p-2.5 rounded-xl border border-[#1E293B] bg-[#141C2E]/60 hover:border-slate-700 hover:bg-[#1A243B] text-left transition"
                       >
-                        <div className="w-7 h-7 rounded-lg bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-blue-400 shrink-0">
+                        <div className="w-7 h-7 rounded-lg bg-[#090D16] border border-[#1E293B] flex items-center justify-center shrink-0 text-blue-400">
                           <DynamicIcon name={tool.icon} className="w-3.5 h-3.5" />
                         </div>
-                        <span className="text-xs font-medium text-slate-200 truncate">
+                        <span className="text-xs font-semibold text-white truncate">
                           {isZh ? tool.name : tool.nameEn}
                         </span>
                       </button>
@@ -329,34 +310,53 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
                 </div>
               )}
 
-              {/* Popular Tools */}
-              <div>
-                <div className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{isZh ? '热门高频推荐' : 'Popular Tools'}</span>
+              {/* Favorites Shelf */}
+              {favoriteItems.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 mb-2.5">
+                    <Star className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{isZh ? '我的收藏' : 'My Favorites'}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {favoriteItems.map((tool) => (
+                      <button
+                        key={`fav-${tool.slug}`}
+                        type="button"
+                        onClick={() => handleSelect({ type: 'tool', item: tool })}
+                        className="flex items-center gap-2.5 p-2.5 rounded-xl border border-[#1E293B] bg-[#141C2E]/60 hover:border-slate-700 hover:bg-[#1A243B] text-left transition"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-[#090D16] border border-[#1E293B] flex items-center justify-center shrink-0 text-amber-400">
+                          <DynamicIcon name={tool.icon} className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-xs font-semibold text-white truncate">
+                          {isZh ? tool.name : tool.nameEn}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-1">
+              )}
+
+              {/* S-Tier Popular Picks */}
+              <div>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 mb-2.5">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                  <span>{isZh ? '热门推荐 (S-Tier)' : 'Popular (S-Tier)'}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {hotItems.map((tool) => (
                     <button
                       key={`hot-${tool.slug}`}
                       type="button"
-                      onClick={() => {
-                        router.push(tool.href)
-                        onClose()
-                      }}
-                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#141C2E] text-left transition-colors group"
+                      onClick={() => handleSelect({ type: 'tool', item: tool })}
+                      className="flex items-center gap-2 p-2 rounded-xl border border-[#1E293B] bg-[#141C2E]/60 hover:border-slate-700 hover:bg-[#1A243B] text-left transition"
                     >
-                      <div className="w-7 h-7 rounded-lg bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-blue-400 shrink-0 group-hover:text-white">
-                        <DynamicIcon name={tool.icon} className="w-3.5 h-3.5" />
+                      <div className="w-6 h-6 rounded-md bg-[#090D16] border border-[#1E293B] flex items-center justify-center shrink-0 text-blue-400">
+                        <DynamicIcon name={tool.icon} className="w-3 h-3" />
                       </div>
-                      <div className="min-w-0">
-                        <span className="text-xs font-medium text-slate-200 group-hover:text-blue-400 transition-colors block truncate">
-                          {isZh ? tool.name : tool.nameEn}
-                        </span>
-                        <span className="text-[11px] text-slate-500 block truncate">
-                          {isZh ? tool.description : tool.descriptionEn}
-                        </span>
-                      </div>
+                      <span className="text-xs text-slate-300 font-medium truncate">
+                        {isZh ? tool.name : tool.nameEn}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -365,32 +365,23 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
           )}
         </div>
 
-        {/* Footer shortcuts helper */}
-        <div className="px-4 py-2.5 bg-[#090D16] border-t border-[#1E293B] text-[11px] text-slate-500 flex items-center justify-between">
+        {/* Modal Footer Controls Helper */}
+        <div className="px-4 py-2.5 border-t border-[#1E293B] bg-[#090D16]/60 flex items-center justify-between text-[11px] text-slate-500">
           <div className="flex items-center gap-3">
             <span>
-              <kbd className="px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded border border-slate-700 font-mono text-[10px] mr-1">
-                ↑
-              </kbd>
-              <kbd className="px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded border border-slate-700 font-mono text-[10px] mr-1">
-                ↓
-              </kbd>
+              <kbd className="px-1 py-0.5 rounded bg-[#141C2E] border border-[#1E293B] text-slate-400 font-mono">↑↓</kbd>{' '}
               {isZh ? '选择' : 'Navigate'}
             </span>
             <span>
-              <kbd className="px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded border border-slate-700 font-mono text-[10px] mr-1">
-                ↵
-              </kbd>
-              {isZh ? '打开' : 'Open'}
+              <kbd className="px-1 py-0.5 rounded bg-[#141C2E] border border-[#1E293B] text-slate-400 font-mono">↵</kbd>{' '}
+              {isZh ? '直达' : 'Open'}
             </span>
             <span>
-              <kbd className="px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded border border-slate-700 font-mono text-[10px] mr-1">
-                ESC
-              </kbd>
+              <kbd className="px-1 py-0.5 rounded bg-[#141C2E] border border-[#1E293B] text-slate-400 font-mono">ESC</kbd>{' '}
               {isZh ? '关闭' : 'Close'}
             </span>
           </div>
-          <span className="text-slate-500 font-mono">{allTools.length} Tools</span>
+          <span className="font-mono text-slate-500">{allTools.length} tools · 8 games</span>
         </div>
       </div>
     </div>

@@ -74,6 +74,22 @@ describe('Registry Integrity', () => {
     expect(featured.map((t) => t.slug)).toContain('salary')
   })
 
+  it('should verify all tools have valid tier and valid relatedTools', () => {
+    const activeTools = getActiveTools()
+    const allSlugs = new Set(activeTools.map((t) => t.slug))
+
+    for (const tool of activeTools) {
+      // Validate tier
+      expect(['S', 'A', 'B']).toContain(tool.tier)
+
+      // Validate relatedTools
+      expect(tool.relatedTools.length).toBeGreaterThanOrEqual(2)
+      for (const rel of tool.relatedTools) {
+        expect(allSlugs.has(rel)).toBe(true)
+      }
+    }
+  })
+
   it('should register all 8 genuine games', () => {
     const games = getAllGames()
     expect(games.length).toBe(8)
