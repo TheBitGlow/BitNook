@@ -1,12 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
-import { Heart, RotateCcw } from 'lucide-react'
-import { useI18n } from '@/lib/i18n'
+import ToolLayout from '@/components/tools/ToolLayout'
+import { Heart, RotateCcw, Activity } from 'lucide-react'
 
-type Method = 'max' | 'reserve'
+type Method = 'reserve' | 'max'
 type Formula = 'fox' | 'tanaka'
 
 const ZONES = [
@@ -15,50 +13,40 @@ const ZONES = [
     min: 50,
     max: 60,
     color: '#3B82F6',
-    zhName: '热身区',
-    enName: 'Warm-up',
-    zhDesc: '轻松活动，适合热身、恢复和刚开始运动的人群。',
-    enDesc: 'Easy effort for warm-up, recovery, and beginners.',
+    name: '热身放松区 (50%~60%)',
+    desc: '极低强度活动，适合运动前动态热身、运动后乳酸恢复排酸与久坐初练人群。',
   },
   {
     key: 'fat',
     min: 60,
     max: 70,
     color: '#10B981',
-    zhName: '燃脂区',
-    enName: 'Fat burn',
-    zhDesc: '中低强度，适合长时间有氧和体重管理。',
-    enDesc: 'Low-to-moderate effort for longer aerobic sessions and weight management.',
+    name: '燃脂有氧区 (60%~70%)',
+    desc: '低强度舒适区间，脂肪供能比例最高，可持续长时间慢跑、骑行，适合减脂控重。',
   },
   {
     key: 'aerobic',
     min: 70,
     max: 80,
     color: '#F59E0B',
-    zhName: '有氧区',
-    enName: 'Aerobic',
-    zhDesc: '中等强度，提升心肺能力和耐力基础。',
-    enDesc: 'Moderate effort for cardiovascular fitness and endurance.',
+    name: '耐力有氧区 (70%~80%)',
+    desc: '中等强度，能有效增强心脏泵血效率与肺活量，是马拉松等耐力项目的核心训练区间。',
   },
   {
     key: 'threshold',
     min: 80,
     max: 90,
     color: '#EF4444',
-    zhName: '阈值区',
-    enName: 'Threshold',
-    zhDesc: '较高强度，适合间歇训练和速度能力提升。',
-    enDesc: 'Hard effort for intervals and speed development.',
+    name: '乳酸阈值区 (80%~90%)',
+    desc: '高强度间歇，体内乳酸产生与清除达到动态平衡临界点，适合提升速度耐力与抗乳酸能力。',
   },
   {
     key: 'peak',
     min: 90,
     max: 100,
     color: '#DC2626',
-    zhName: '极限区',
-    enName: 'Peak',
-    zhDesc: '接近最大强度，时间应短，建议有训练基础者谨慎使用。',
-    enDesc: 'Near-max effort. Keep it brief and use carefully if well trained.',
+    name: '极限无氧区 (90%~100%)',
+    desc: '接近最大摄氧量与极限负荷，极度消耗，单次持续时间应控制在数秒至极短冲刺内。',
   },
 ]
 
@@ -73,8 +61,6 @@ const calculateMaxHeartRate = (age: number, formula: Formula) => {
 }
 
 export default function HeartRatePage() {
-  const { locale } = useI18n()
-  const isZh = locale === 'zh'
   const [age, setAge] = useState(30)
   const [maxHR, setMaxHR] = useState(190)
   const [restingHR, setRestingHR] = useState(70)
@@ -84,20 +70,26 @@ export default function HeartRatePage() {
   const estimatedMaxHR = useMemo(() => calculateMaxHeartRate(age, formula), [age, formula])
   const heartRateReserve = Math.max(0, maxHR - restingHR)
 
-  const zones = useMemo(() => ZONES.map((zone) => {
-    const low = method === 'reserve'
-      ? restingHR + heartRateReserve * zone.min / 100
-      : maxHR * zone.min / 100
-    const high = method === 'reserve'
-      ? restingHR + heartRateReserve * zone.max / 100
-      : maxHR * zone.max / 100
+  const zones = useMemo(
+    () =>
+      ZONES.map((zone) => {
+        const low =
+          method === 'reserve'
+            ? restingHR + (heartRateReserve * zone.min) / 100
+            : (maxHR * zone.min) / 100
+        const high =
+          method === 'reserve'
+            ? restingHR + (heartRateReserve * zone.max) / 100
+            : (maxHR * zone.max) / 100
 
-    return {
-      ...zone,
-      low: Math.round(low),
-      high: Math.round(high),
-    }
-  }), [heartRateReserve, maxHR, method, restingHR])
+        return {
+          ...zone,
+          low: Math.round(low),
+          high: Math.round(high),
+        }
+      }),
+    [heartRateReserve, maxHR, method, restingHR]
+  )
 
   const syncEstimatedMax = () => {
     setMaxHR(clamp(estimatedMaxHR, 80, 240))
@@ -111,226 +103,216 @@ export default function HeartRatePage() {
     setMethod('reserve')
   }
 
-  const formulaLabel = formula === 'fox' ? '220 - age' : '208 - 0.7 x age'
+  const faq = [
+    {
+      question: '为什么心率储备法（Karvonen 公式）通常被认为比最大心率百分比更精确？',
+      answer:
+        '最大心率百分比法仅考虑年龄估算的最高极限，忽略了个体的基础体质；而心率储备法（HRR = 最大心率 - 静息心率）将静息心率纳入基底，真实反映了心脏的可动用储备空间。静息心率越低，通常意味着心肌收缩力越强，储备区间越宽。',
+    },
+    {
+      question: 'Tanaka 公式与经典的 220 - 年龄 有什么不同？',
+      answer:
+        '220 - 年龄（Fox 公式）源自 1971 年的经验归纳，对中青年估算较好，但容易高估老年人的最大心率；Tanaka 公式（208 - 0.7 × 年龄）通过对数千名涵盖不同年龄与体能水平的大规模临床样本元分析回归得出，对中老年人及长期训练者准确度更高。',
+    },
+    {
+      question: '运动手表测出的心率漂移（Cardiovascular Drift）是怎么回事？',
+      answer:
+        '长时间有氧运动（如长跑1小时以上）且环境温度较高时，由于体表散热出汗导致血容量轻微下降，为了维持同等心输出量，心脏跳动频率会自然逐渐上浮（每分钟增加 5~15 次），这是正常的体温调节生理代偿现象。',
+    },
+  ]
+
+  const howToSteps = [
+    '输入当前周岁年龄与清晨静息心率（静坐静息状态下测量，通常在 55~80 次/分）。',
+    '选择最大心率估算公式（推荐 Fox 或 Tanaka），或直接输入体检实测最大心率。',
+    '选择心率区间计算模型（推荐个性化更精准的【心率储备法 Karvonen】）。',
+    '查阅 5 大运动强度区间（热身、燃脂、有氧、乳酸阈值、极限无氧）的目标心率范围。',
+  ]
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
+    <ToolLayout
+      toolSlug="heart-rate"
+      principlesTitle="训练心率区间与运动生理学计算原理"
+      principles={
+        <>
+          <p>
+            <strong>1. 最大心率估算模型：</strong>
+            <br />
+            - Fox 经典公式：{'HR_max = 220 - 年龄'}
+            <br />
+            - Tanaka 严谨公式：{'HR_max = 208 - 0.7 × 年龄'}
+          </p>
+          <p>
+            <strong>2. Karvonen 心率储备计算公式：</strong>
+            {'目标心率 = 静息心率 + (HR_max - 静息心率) × 强度百分比'}。
+          </p>
+          <p>
+            <strong>3. 五区划分法（Zones）：</strong>按运动生理学能量代谢系统分为热身区（50%-60%）、燃脂区（60%-70%）、有氧耐力区（70%-80%）、无氧阈值区（80%-90%）与极限红区（90%-100%）。
+          </p>
+        </>
+      }
+      howToSteps={howToSteps}
+      faq={faq}
+      disclaimer="本工具用于运动健身科学训练区间规划与体能参考。心血管疾病患者、高血压患者或正在服用 β-受体阻滞剂等影响心率药物的人群，运动心率上限须经专科医师运动压力测试核定。"
+    >
+      <div className="space-y-6">
+        {/* Input Card */}
+        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
+          <div className="flex items-center justify-between border-b border-[rgba(99,102,241,0.1)] pb-4 mb-6">
+            <h3 className="font-semibold text-white text-sm sm:text-base flex items-center gap-2">
+              <Activity className="h-5 w-5 text-[#EF4444]" />
+              生理参数与计算模型设置
+            </h3>
+            <button
+              type="button"
+              onClick={reset}
+              className="flex items-center gap-1.5 rounded-lg border border-[rgba(99,102,241,0.2)] bg-[#111827] px-3 py-1.5 text-xs text-[#94A3B8] hover:text-white transition-colors"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              恢复默认
+            </button>
+          </div>
 
-      <main className="flex-1 py-8 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-[#EF4444]/20 flex items-center justify-center">
-                <Heart className="w-5 h-5 text-[#EF4444]" />
-              </div>
-              <h1 className="text-2xl font-bold text-white">
-                {isZh ? '心率计算器' : 'Heart Rate Calculator'}
-              </h1>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+            <div>
+              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+                年龄 (岁)
+              </label>
+              <input
+                type="number"
+                min={10}
+                max={100}
+                value={age}
+                onChange={(e) => setAge(clamp(Number(e.target.value), 10, 100))}
+                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-mono focus:border-[#EF4444] focus:outline-none"
+              />
             </div>
-            <p className="text-[#94A3B8]">
-              {isZh
-                ? '根据年龄、最大心率和静息心率计算训练心率区间。'
-                : 'Calculate training heart-rate zones from age, maximum heart rate, and resting heart rate.'}
-            </p>
+
+            <div>
+              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+                静息心率 (bpm)
+              </label>
+              <input
+                type="number"
+                min={30}
+                max={120}
+                value={restingHR}
+                onChange={(e) => setRestingHR(clamp(Number(e.target.value), 30, 120))}
+                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-mono focus:border-[#EF4444] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+                最大心率算法
+              </label>
+              <select
+                aria-label="最大心率算法"
+                value={formula}
+                onChange={(e) => setFormula(e.target.value as Formula)}
+                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-medium focus:border-[#EF4444] focus:outline-none"
+              >
+                <option value="fox">Fox 公式 (220 - 年龄)</option>
+                <option value="tanaka">Tanaka 公式 (208 - 0.7×年龄)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+                区间计算方法
+              </label>
+              <select
+                aria-label="区间计算方法"
+                value={method}
+                onChange={(e) => setMethod(e.target.value as Method)}
+                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-medium focus:border-[#EF4444] focus:outline-none"
+              >
+                <option value="reserve">心率储备法 (Karvonen 推荐)</option>
+                <option value="max">最大心率百分比法 (%HRmax)</option>
+              </select>
+            </div>
           </div>
 
-          <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-6">
-            <section className="glass-card p-6">
-              <div className="flex items-center justify-between gap-3 mb-6">
-                <h2 className="text-lg font-semibold text-white">
-                  {isZh ? '输入参数' : 'Inputs'}
-                </h2>
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#111827] border border-[rgba(99,102,241,0.2)] text-[#94A3B8] hover:text-white transition-colors"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  {isZh ? '重置' : 'Reset'}
-                </button>
-              </div>
-
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm text-[#94A3B8] mb-2">
-                    {isZh ? '年龄' : 'Age'}
-                  </label>
-                  <input
-                    type="number"
-                    min={10}
-                    max={100}
-                    value={age}
-                    onChange={(e) => setAge(clamp(Number(e.target.value), 10, 100))}
-                    className="w-full px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white focus:outline-none focus:border-[rgba(99,102,241,0.4)]"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm text-[#94A3B8]">
-                      {isZh ? '最大心率估算公式' : 'Max HR estimate'}
-                    </label>
-                    <span className="text-xs text-[#64748B]">{formulaLabel}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(['fox', 'tanaka'] as const).map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => setFormula(item)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          formula === item
-                            ? 'bg-[#EF4444] text-white'
-                            : 'bg-[#080B14] text-[#94A3B8] border border-[rgba(99,102,241,0.15)] hover:text-white'
-                        }`}
-                      >
-                        {item === 'fox' ? 'Fox' : 'Tanaka'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm text-[#94A3B8]">
-                      {isZh ? '最大心率' : 'Maximum heart rate'}
-                    </label>
-                    <span className="text-xs text-[#64748B]">
-                      {isZh ? '估算值' : 'Estimate'}: {estimatedMaxHR} bpm
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      min={80}
-                      max={240}
-                      value={maxHR}
-                      onChange={(e) => setMaxHR(clamp(Number(e.target.value), 80, 240))}
-                      className="flex-1 px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white focus:outline-none focus:border-[rgba(99,102,241,0.4)]"
-                    />
-                    <button
-                      type="button"
-                      onClick={syncEstimatedMax}
-                      className="px-4 py-3 rounded-xl bg-[#111827] border border-[rgba(99,102,241,0.2)] text-[#94A3B8] hover:text-white transition-colors whitespace-nowrap"
-                    >
-                      {isZh ? '使用估算值' : 'Use estimate'}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-[#94A3B8] mb-2">
-                    {isZh ? '静息心率' : 'Resting heart rate'}
-                  </label>
-                  <input
-                    type="number"
-                    min={30}
-                    max={120}
-                    value={restingHR}
-                    onChange={(e) => setRestingHR(clamp(Number(e.target.value), 30, 120))}
-                    className="w-full px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white focus:outline-none focus:border-[rgba(99,102,241,0.4)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-[#94A3B8] mb-2">
-                    {isZh ? '计算方法' : 'Calculation method'}
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setMethod('reserve')}
-                      className={`px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
-                        method === 'reserve'
-                          ? 'bg-[#EF4444] text-white'
-                          : 'bg-[#080B14] text-[#94A3B8] border border-[rgba(99,102,241,0.15)] hover:text-white'
-                      }`}
-                    >
-                      {isZh ? '心率储备法' : 'Heart rate reserve'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMethod('max')}
-                      className={`px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
-                        method === 'max'
-                          ? 'bg-[#EF4444] text-white'
-                          : 'bg-[#080B14] text-[#94A3B8] border border-[rgba(99,102,241,0.15)] hover:text-white'
-                      }`}
-                    >
-                      {isZh ? '最大心率百分比' : '% of max HR'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-4">
-              <div className="grid sm:grid-cols-3 gap-3">
-                <div className="glass-card p-5">
-                  <p className="text-sm text-[#94A3B8] mb-2">{isZh ? '最大心率' : 'Max HR'}</p>
-                  <p className="text-3xl font-bold text-white">{maxHR}</p>
-                  <p className="text-xs text-[#64748B] mt-1">bpm</p>
-                </div>
-                <div className="glass-card p-5">
-                  <p className="text-sm text-[#94A3B8] mb-2">{isZh ? '静息心率' : 'Resting HR'}</p>
-                  <p className="text-3xl font-bold text-white">{restingHR}</p>
-                  <p className="text-xs text-[#64748B] mt-1">bpm</p>
-                </div>
-                <div className="glass-card p-5">
-                  <p className="text-sm text-[#94A3B8] mb-2">{isZh ? '心率储备' : 'HR reserve'}</p>
-                  <p className="text-3xl font-bold text-white">{heartRateReserve}</p>
-                  <p className="text-xs text-[#64748B] mt-1">bpm</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {zones.map((zone) => (
-                  <div
-                    key={zone.key}
-                    className="glass-card p-4 border-l-4"
-                    style={{ borderLeftColor: zone.color }}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                      <div>
-                        <span className="font-medium text-white">{isZh ? zone.zhName : zone.enName}</span>
-                        <span className="ml-2 text-xs text-[#64748B]">
-                          {zone.min}% - {zone.max}%
-                        </span>
-                      </div>
-                      <span className="text-sm font-semibold" style={{ color: zone.color }}>
-                        {zone.low} - {zone.high} bpm
-                      </span>
-                    </div>
-                    <p className="text-sm text-[#94A3B8] mb-3">{isZh ? zone.zhDesc : zone.enDesc}</p>
-                    <div className="h-2 bg-[#080B14] rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${zone.max - zone.min}%`,
-                          marginLeft: `${zone.min}%`,
-                          backgroundColor: zone.color,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
-
-          <div className="mt-6 p-4 bg-[#111827]/50 rounded-xl border border-[rgba(99,102,241,0.1)]">
-            <p className="text-sm text-[#94A3B8] leading-relaxed">
-              <span className="text-[#F59E0B]">{isZh ? '说明：' : 'Note: '}</span>
-              {isZh
-                ? '心率储备法公式：目标心率 = 静息心率 + (最大心率 - 静息心率) x 强度比例。最大心率估算存在个体差异，运动处方或疾病相关训练请咨询医生或专业教练。'
-                : 'Heart rate reserve formula: target HR = resting HR + (max HR - resting HR) x intensity. Maximum heart-rate estimates vary by person; consult a clinician or qualified coach for medical or prescribed training needs.'}
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-[#070A12]/60 rounded-xl p-3 border border-[rgba(99,102,241,0.1)]">
+            <span className="text-[#94A3B8]">
+              当前估算最大心率：<strong className="text-white font-mono">{estimatedMaxHR} bpm</strong>
+              ，实际设定：<strong className="text-white font-mono">{maxHR} bpm</strong>
+            </span>
+            <button
+              type="button"
+              onClick={syncEstimatedMax}
+              className="text-[#EF4444] hover:text-[#F87171] font-semibold"
+            >
+              一键同步为公式估算值 ({estimatedMaxHR} bpm)
+            </button>
           </div>
         </div>
-      </main>
 
-      <Footer />
-    </div>
+        {/* Results Overview */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
+            <p className="text-xs text-[#94A3B8] mb-1">基准最大心率 (Max HR)</p>
+            <p className="text-3xl font-extrabold text-[#EF4444] font-mono tracking-tight my-1">
+              {maxHR} <span className="text-sm font-sans text-[#94A3B8]">bpm</span>
+            </p>
+            <p className="text-xs text-[#64748B]">生理安全绝对极限</p>
+          </div>
+
+          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
+            <p className="text-xs text-[#94A3B8] mb-1">静息清晨心率 (Resting HR)</p>
+            <p className="text-3xl font-extrabold text-[#38BDF8] font-mono tracking-tight my-1">
+              {restingHR} <span className="text-sm font-sans text-[#94A3B8]">bpm</span>
+            </p>
+            <p className="text-xs text-[#64748B]">清晨未下床安静状态</p>
+          </div>
+
+          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
+            <p className="text-xs text-[#94A3B8] mb-1">有效心率储备 (HR Reserve)</p>
+            <p className="text-3xl font-extrabold text-[#10B981] font-mono tracking-tight my-1">
+              {heartRateReserve} <span className="text-sm font-sans text-[#94A3B8]">bpm</span>
+            </p>
+            <p className="text-xs text-[#64748B]">心功能可动用缓冲空间</p>
+          </div>
+        </div>
+
+        {/* Zones Spectrum Cards */}
+        <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-6 space-y-4">
+          <h3 className="font-semibold text-white text-sm sm:text-base mb-2">
+            5 大运动生理学靶心率区间 (Target Heart Rate Zones)
+          </h3>
+          <div className="space-y-3">
+            {zones.map((zone) => (
+              <div
+                key={zone.key}
+                className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/60 p-4 border-l-4 transition-all"
+                style={{ borderLeftColor: zone.color }}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white text-sm">{zone.name}</span>
+                  </div>
+                  <span
+                    className="font-mono text-base font-extrabold"
+                    style={{ color: zone.color }}
+                  >
+                    {zone.low} ~ {zone.high} <span className="text-xs font-normal text-[#94A3B8]">bpm</span>
+                  </span>
+                </div>
+                <p className="text-xs text-[#94A3B8] mb-3 leading-relaxed">{zone.desc}</p>
+                <div className="h-2 bg-[#111827] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${zone.max - zone.min}%`,
+                      marginLeft: `${zone.min}%`,
+                      backgroundColor: zone.color,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </ToolLayout>
   )
 }

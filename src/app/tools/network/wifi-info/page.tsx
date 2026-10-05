@@ -1,193 +1,216 @@
 'use client'
 
-import { useState } from 'react'
-import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
-import { Wifi, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import ToolLayout from '@/components/tools/ToolLayout'
+import { Wifi, Gauge, Clock, ShieldAlert, CheckCircle2, RefreshCw, Smartphone, Laptop } from 'lucide-react'
 
-export default function WiFiInfoPage() {
-  const [manualInfo, setManualInfo] = useState({
-    ssid: '',
-    bssid: '',
-    signal: 75,
-    frequency: 2400,
-    security: 'WPA2-PSK'
+interface NetworkInfoState {
+  supported: boolean
+  isOnline: boolean
+  effectiveType: string
+  downlink: number | null
+  rtt: number | null
+  saveData: boolean | null
+  connectionType?: string
+}
+
+export default function BrowserNetworkInfoPage() {
+  const [info, setInfo] = useState<NetworkInfoState>({
+    supported: false,
+    isOnline: true,
+    effectiveType: '未知',
+    downlink: null,
+    rtt: null,
+    saveData: null,
   })
-  const [showManual, setShowManual] = useState(false)
 
-  const getSignalQuality = (signal: number) => {
-    if (signal >= 80) return { text: '优秀', color: '#10B981' }
-    if (signal >= 60) return { text: '良好', color: '#3B82F6' }
-    if (signal >= 40) return { text: '一般', color: '#F59E0B' }
-    return { text: '较差', color: '#EF4444' }
-  }
+  useEffect(() => {
+    const updateNetworkInfo = () => {
+      const nav = navigator as any
+      const conn = nav.connection || nav.mozConnection || nav.webkitConnection
 
-  const signalQuality = getSignalQuality(manualInfo.signal)
+      if (conn) {
+        setInfo({
+          supported: true,
+          isOnline: navigator.onLine,
+          effectiveType: conn.effectiveType || '未知',
+          downlink: typeof conn.downlink === 'number' ? conn.downlink : null,
+          rtt: typeof conn.rtt === 'number' ? conn.rtt : null,
+          saveData: typeof conn.saveData === 'boolean' ? conn.saveData : null,
+          connectionType: conn.type || undefined,
+        })
+      } else {
+        setInfo({
+          supported: false,
+          isOnline: navigator.onLine,
+          effectiveType: '浏览器未开放 API',
+          downlink: null,
+          rtt: null,
+          saveData: null,
+        })
+      }
+    }
+
+    updateNetworkInfo()
+
+    const nav = navigator as any
+    const conn = nav.connection || nav.mozConnection || nav.webkitConnection
+
+    if (conn && conn.addEventListener) {
+      conn.addEventListener('change', updateNetworkInfo)
+    }
+
+    window.addEventListener('online', updateNetworkInfo)
+    window.addEventListener('offline', updateNetworkInfo)
+
+    return () => {
+      if (conn && conn.removeEventListener) {
+        conn.removeEventListener('change', updateNetworkInfo)
+      }
+      window.removeEventListener('online', updateNetworkInfo)
+      window.removeEventListener('offline', updateNetworkInfo)
+    }
+  }, [])
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
-
-      <main className="flex-1 py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-[#3B82F6]/20 flex items-center justify-center">
-                <Wifi className="w-5 h-5 text-[#3B82F6]" />
+    <ToolLayout slug="wifi-info">
+      <div className="space-y-6">
+        {/* Real-time Status Card */}
+        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/60 p-6 shadow-xl space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-950/80 border border-indigo-700/50 flex items-center justify-center text-indigo-400">
+                <Wifi className="w-6 h-6" />
               </div>
-              <h1 className="text-2xl font-bold text-white">WiFi信息</h1>
-            </div>
-            <p className="text-[#94A3B8]">查看当前WiFi连接信息</p>
-          </div>
-
-          {/* Notice */}
-          <div className="glass-card p-6 mb-6 border border-[#F59E0B]/30">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-[#F59E0B] flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-white font-medium mb-1">浏览器权限限制</h3>
-                <p className="text-sm text-[#94A3B8]">
-                  由于浏览器安全策略限制，无法直接获取当前WiFi信息。建议您使用系统设置查看真实WiFi数据，
-                  或使用下方手动输入功能进行演示。
-                </p>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>当前网络连接状态</span>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      info.isOnline
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                    }`}
+                  >
+                    {info.isOnline ? '正常联网 (Online)' : '网络已断开 (Offline)'}
+                  </span>
+                </h3>
+                <span className="text-xs text-slate-400">
+                  基于 W3C Network Information API 规范读取的客户端环境网络参数
+                </span>
               </div>
+            </div>
+
+            <div className="text-xs text-slate-400 flex items-center gap-1.5 font-mono">
+              <RefreshCw className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
+              <span>动态监听网络环境变动</span>
             </div>
           </div>
 
-          {/* Manual Input Toggle */}
-          <button
-            onClick={() => setShowManual(!showManual)}
-            className="w-full py-3 mb-6 bg-[#111827] border border-[rgba(99,102,241,0.3)] rounded-xl text-[#94A3B8] hover:text-white transition-colors"
-          >
-            {showManual ? '关闭手动输入' : '手动输入WiFi信息（演示用）'}
-          </button>
-
-          {/* Manual Input Form */}
-          {showManual && (
-            <div className="glass-card p-6 mb-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm text-[#94A3B8] mb-2">SSID (WiFi名称)</label>
-                  <input
-                    type="text"
-                    value={manualInfo.ssid}
-                    onChange={(e) => setManualInfo({ ...manualInfo, ssid: e.target.value })}
-                    placeholder="例如：MyHomeWiFi"
-                    className="w-full px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white placeholder:text-[#475569]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#94A3B8] mb-2">BSSID (MAC地址)</label>
-                  <input
-                    type="text"
-                    value={manualInfo.bssid}
-                    onChange={(e) => setManualInfo({ ...manualInfo, bssid: e.target.value })}
-                    placeholder="例如：AA:BB:CC:DD:EE:FF"
-                    className="w-full px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white placeholder:text-[#475569]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#94A3B8] mb-2">信号强度 (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={manualInfo.signal}
-                    onChange={(e) => setManualInfo({ ...manualInfo, signal: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#94A3B8] mb-2">频率 (MHz)</label>
-                  <select
-                    value={manualInfo.frequency}
-                    onChange={(e) => setManualInfo({ ...manualInfo, frequency: parseInt(e.target.value) })}
-                    className="w-full px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white"
-                  >
-                    <option value={2400}>2400 MHz (2.4GHz)</option>
-                    <option value={5180}>5180 MHz (5GHz)</option>
-                    <option value={5925}>5925 MHz (6GHz)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-[#94A3B8] mb-2">加密方式</label>
-                  <select
-                    value={manualInfo.security}
-                    onChange={(e) => setManualInfo({ ...manualInfo, security: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white"
-                  >
-                    <option value="开放">开放 (无密码)</option>
-                    <option value="WEP">WEP</option>
-                    <option value="WPA-PSK">WPA-PSK</option>
-                    <option value="WPA2-PSK">WPA2-PSK</option>
-                    <option value="WPA3-PSK">WPA3-PSK</option>
-                  </select>
-                </div>
+          {/* Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Effective Type */}
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>等效连接类型 (effectiveType)</span>
+                <Laptop className="w-3.5 h-3.5 text-indigo-400" />
               </div>
+              <div className="text-2xl font-mono font-bold text-indigo-400 uppercase">
+                {info.effectiveType}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                {info.effectiveType === '4g'
+                  ? '具备高带宽低延迟特性'
+                  : info.effectiveType === '3g'
+                  ? '中等带宽连接'
+                  : '弱网或限制连接'}
+              </p>
             </div>
-          )}
 
-          {/* WiFi Card - Only show if user entered data */}
-          {manualInfo.ssid && (
-            <div className="glass-card p-6 mb-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-[#3B82F6]/20 flex items-center justify-center">
-                    <Wifi className="w-6 h-6 text-[#3B82F6]" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">{manualInfo.ssid}</h3>
-                    <p className="text-sm text-[#94A3B8]">{manualInfo.bssid || '未填写MAC地址'}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold" style={{ color: signalQuality.color }}>
-                    {manualInfo.signal}%
-                  </p>
-                  <p className="text-sm" style={{ color: signalQuality.color }}>
-                    {signalQuality.text}
-                  </p>
-                </div>
+            {/* Downlink Bandwidth */}
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>估算下行带宽 (downlink)</span>
+                <Gauge className="w-3.5 h-3.5 text-emerald-400" />
               </div>
-
-              <div className="space-y-3">
-                <div className="flex justify-between items-center p-3 bg-[#080B14] rounded">
-                  <span className="text-[#94A3B8]">信号强度</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-2 bg-[#1E293B] rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${manualInfo.signal}%`,
-                          backgroundColor: signalQuality.color
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-white text-sm">{manualInfo.signal}%</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center p-3 bg-[#080B14] rounded">
-                  <span className="text-[#94A3B8]">频率</span>
-                  <span className="text-white">{manualInfo.frequency} MHz ({manualInfo.frequency >= 5000 ? '5GHz' : '2.4GHz'})</span>
-                </div>
-
-                <div className="flex justify-between items-center p-3 bg-[#080B14] rounded">
-                  <span className="text-[#94A3B8]">加密方式</span>
-                  <span className="text-white">{manualInfo.security}</span>
-                </div>
+              <div className="text-2xl font-mono font-bold text-emerald-400">
+                {info.downlink !== null ? `${info.downlink} Mbps` : '不支持'}
               </div>
+              <p className="text-[11px] text-slate-400">浏览器对当前物理信道吞吐量估值</p>
             </div>
-          )}
 
-          <p className="text-xs text-[#475569] text-center">
-            提示：真实WiFi信息请在系统设置或路由器管理页面查看
-          </p>
+            {/* Estimated RTT */}
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>估算往返时延 (rtt)</span>
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+              </div>
+              <div className="text-2xl font-mono font-bold text-amber-400">
+                {info.rtt !== null ? `${info.rtt} ms` : '不支持'}
+              </div>
+              <p className="text-[11px] text-slate-400">应用层传输层估算延迟</p>
+            </div>
+
+            {/* Data Saver */}
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>省流模式 (saveData)</span>
+                <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+              </div>
+              <div className="text-2xl font-mono font-bold text-white">
+                {info.saveData !== null ? (info.saveData ? '已开启' : '未开启') : '未上报'}
+              </div>
+              <p className="text-[11px] text-slate-400">用户系统是否设置了节省流量</p>
+            </div>
+          </div>
         </div>
-      </main>
 
-      <Footer />
-    </div>
+        {/* Compatibility Notice */}
+        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/60 p-6 space-y-4 shadow-xl">
+          <h4 className="text-xs font-semibold text-slate-200 flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-amber-400" />
+            <span>浏览器底层隐私边界与跨平台兼容性说明</span>
+          </h4>
+
+          <div className="text-xs text-slate-400 space-y-2 leading-relaxed">
+            <p>
+              <strong>为什么网页无法读取真实的 WiFi 名称 (SSID) 或路由器 MAC (BSSID)？</strong>
+              根据现代浏览器 W3C 安全规范，SSID 与 BSSID 属于精确定位与隐私敏感数据，恶意网页可能借此精确推算出用户的物理居住地址。因此，所有主流浏览器均在底层彻底阻断了 JavaScript 直接访问操作系统底层无线网卡配置的权限。
+            </p>
+            <p>
+              本项目坚持<strong>真实可用、绝不模拟伪造数据</strong>的原则，严格展示浏览器真实暴露的网络状态指标。
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="font-semibold text-slate-200 block">Chrome / Edge / 360</span>
+                <span className="text-[11px] text-slate-400">Chromium 内核</span>
+              </div>
+              <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" /> 完整支持
+              </span>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="font-semibold text-slate-200 block">Safari / iOS WebKit</span>
+                <span className="text-[11px] text-slate-400">Apple 平台</span>
+              </div>
+              <span className="text-amber-400 font-medium">因防追踪策略受限</span>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="font-semibold text-slate-200 block">Firefox 火狐</span>
+                <span className="text-[11px] text-slate-400">Gecko 内核</span>
+              </div>
+              <span className="text-amber-400 font-medium">需手动开启配置项</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ToolLayout>
   )
 }

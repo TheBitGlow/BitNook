@@ -1,76 +1,85 @@
 import type { MetadataRoute } from 'next'
+import { getAllCategories } from '@/config/categories'
+import { getActiveTools } from '@/config/tools'
+import { getAllGames } from '@/config/games'
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://bitnook.example.com'
-
-const routes = [
-  '/',
-  '/tools',
-  '/tools/daily',
-  '/tools/daily/timer',
-  '/tools/daily/countdown',
-  '/tools/daily/lottery',
-  '/tools/daily/password',
-  '/tools/daily/word-count',
-  '/tools/daily/date-calc',
-  '/tools/daily/stopwatch',
-  '/tools/daily/world-clock',
-  '/tools/finance',
-  '/tools/finance/mortgage',
-  '/tools/finance/exchange',
-  '/tools/finance/retirement',
-  '/tools/finance/compound',
-  '/tools/finance/salary',
-  '/tools/finance/deposit',
-  '/tools/finance/loan-compare',
-  '/tools/finance/roi',
-  '/tools/health',
-  '/tools/health/bmi',
-  '/tools/health/heart-rate',
-  '/tools/health/calories',
-  '/tools/health/water-intake',
-  '/tools/health/sleep',
-  '/tools/health/steps',
-  '/tools/health/heart-age',
-  '/tools/health/blood-pressure',
-  '/tools/convert',
-  '/tools/convert/unit',
-  '/tools/convert/radix',
-  '/tools/convert/hash',
-  '/tools/convert/qrcode',
-  '/tools/convert/color',
-  '/tools/convert/timestamp',
-  '/tools/network',
-  '/tools/network/ip-lookup',
-  '/tools/network/dns',
-  '/tools/network/speed-test',
-  '/tools/network/ping',
-  '/tools/network/port-scan',
-  '/tools/network/wifi-info',
-  '/tools/network/http-check',
-  '/tools/network/ssl-check',
-  '/tools/ai',
-  '/tools/ai/gpu-calculator',
-  '/games',
-  '/games/tetris',
-  '/games/minesweeper',
-  '/games/snake',
-  '/games/gomoku',
-  '/games/match3',
-  '/games/chess-international',
-  '/games/chess-chinese',
-  '/games/freecell',
-  '/about',
-  '/contact',
-  '/privacy',
-  '/terms',
-]
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://bitnook.com'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date()
-  return routes.map((route) => ({
-    url: `${baseUrl}${route}`,
-    lastModified: now,
-    changeFrequency: route === '/' ? 'daily' : 'weekly',
-    priority: route === '/' ? 1 : route.startsWith('/tools/finance') ? 0.85 : 0.7,
+  const staticRoutes: MetadataRoute.Sitemap = [
+    {
+      url: `${baseUrl}/`,
+      lastModified: '2026-03-25',
+      changeFrequency: 'daily',
+      priority: 1.0,
+    },
+    {
+      url: `${baseUrl}/tools`,
+      lastModified: '2026-03-25',
+      changeFrequency: 'daily',
+      priority: 0.95,
+    },
+    {
+      url: `${baseUrl}/games`,
+      lastModified: '2026-03-20',
+      changeFrequency: 'weekly',
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/pricing`,
+      lastModified: '2026-03-15',
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/about`,
+      lastModified: '2026-03-15',
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/contact`,
+      lastModified: '2026-03-15',
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/privacy`,
+      lastModified: '2026-03-15',
+      changeFrequency: 'monthly',
+      priority: 0.4,
+    },
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: '2026-03-15',
+      changeFrequency: 'monthly',
+      priority: 0.4,
+    },
+  ]
+
+  // Category pages from registry
+  const categoryRoutes: MetadataRoute.Sitemap = getAllCategories().map(cat => ({
+    url: `${baseUrl}/tools/${cat.slug}`,
+    lastModified: '2026-03-25',
+    changeFrequency: 'weekly',
+    priority: 0.8,
   }))
+
+  // Leaf tool pages from registry
+  const toolRoutes: MetadataRoute.Sitemap = getActiveTools().map(tool => ({
+    url: `${baseUrl}${tool.href}`,
+    lastModified: tool.updatedAt,
+    changeFrequency: tool.category === 'finance' ? 'weekly' : 'monthly',
+    priority: tool.category === 'finance' ? 0.9 : 0.75,
+  }))
+
+  // Game pages from registry
+  const gameRoutes: MetadataRoute.Sitemap = getAllGames().map(game => ({
+    url: `${baseUrl}${game.href}`,
+    lastModified: game.updatedAt,
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  }))
+
+  return [...staticRoutes, ...categoryRoutes, ...toolRoutes, ...gameRoutes]
 }

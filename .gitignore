@@ -104,3 +104,5 @@ prisma/*.db-journal
 # 10. 部署平台临时文件 (Vercel)
 # ==========================================
 .vercel
+.vinext/
+.cloudflare/

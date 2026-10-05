@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
-import { Crown, RotateCcw, Bot, User, Trophy } from 'lucide-react'
+import AdSlot from '@/components/ads/AdSlot'
+import { Crown, RotateCcw, Bot, User, Trophy, Undo2, AlertTriangle } from 'lucide-react'
 
 type Piece = { type: string; color: 'white' | 'black' }
 type Board = (Piece | null)[][]
@@ -101,7 +102,7 @@ const KING_TABLE = [
 
 const AI_DEPTH: Record<string, number> = { easy: 2, medium: 3, hard: 4 }
 
-type Move = { from: Pos; to: Pos; score?: number }
+type Move = { from: Pos; to: Pos; score?: number; promotionType?: string }
 
 function cloneBoard(b: Board): Board {
   return b.map(r => r.map(p => p ? { ...p } : null))
@@ -313,7 +314,8 @@ function makeMove(b: Board, move: Move, castling: any, enPassant: Pos | null): {
   }
 
   if (piece?.type === 'p' && (move.to.r === 0 || move.to.r === 7)) {
-    nb[move.to.r][move.to.c] = { type: 'q', color: piece.color }
+    const promoType = move.promotionType || 'q'
+    nb[move.to.r][move.to.c] = { type: promoType, color: piece.color }
   }
 
   return { board: nb, captured, newCastling, newEnPassant, isEnPassant }
@@ -397,6 +399,15 @@ export default function ChessInternationalPage() {
   })
   const [enPassantTarget, setEnPassantTarget] = useState<Pos | null>(null)
   const [validMoves, setValidMoves] = useState<Pos[]>([])
+  const [pendingPromotion, setPendingPromotion] = useState<{ from: Pos; to: Pos; color: 'white' | 'black' } | null>(null)
+  const [isStalemate, setIsStalemate] = useState(false)
+  const [history, setHistory] = useState<{
+    board: Board
+    currentPlayer: 'white' | 'black'
+    castlingRights: any
+    enPassantTarget: Pos | null
+    moves: number
+  }[]>([])
 
   const boardRef = useRef(board)
   const castlingRightsRef = useRef(castlingRights)
@@ -404,6 +415,92 @@ export default function ChessInternationalPage() {
   useEffect(() => { boardRef.current = board }, [board])
   useEffect(() => { castlingRightsRef.current = castlingRights }, [castlingRights])
   useEffect(() => { enPassantTargetRef.current = enPassantTarget }, [enPassantTarget])
+
+  const inCheck = useMemo(() => isInCheck(board, currentPlayer), [board, currentPlayer])
+
+  const pushHistory = useCallback(() => {
+    setHistory(prev => [
+      ...prev.slice(-20),
+      {
+        board: board.map(row => [...row]),
+        currentPlayer,
+        castlingRights: { ...castlingRights },
+        enPassantTarget: enPassantTarget ? { ...enPassantTarget } : null,
+        moves
+      }
+    ])
+  }, [board, currentPlayer, castlingRights, enPassantTarget, moves])
+
+  const handleUndo = () => {
+    if (history.length === 0 || thinking || pendingPromotion) return
+    const prev = history[history.length - 1]
+    setBoard(prev.board)
+    boardRef.current = prev.board
+    setCurrentPlayer(prev.currentPlayer)
+    setCastlingRights(prev.castlingRights)
+    castlingRightsRef.current = prev.castlingRights
+    setEnPassantTarget(prev.enPassantTarget)
+    enPassantTargetRef.current = prev.enPassantTarget
+    setMoves(prev.moves)
+    setSelected(null)
+    setValidMoves([])
+    setGameOver(false)
+    setWinner(null)
+    setIsStalemate(false)
+    setHistory(h => h.slice(0, -1))
+  }
+
+  const completeMove = (from: Pos, to: Pos, promoType?: string) => {
+    pushHistory()
+    const move: Move = { from, to, promotionType: promoType }
+    const { board: nb, captured, newCastling, newEnPassant } = makeMove(board, move, castlingRights, enPassantTarget)
+
+    if (captured?.type === 'k') {
+      setBoard(nb)
+      boardRef.current = nb
+      setGameOver(true)
+      setWinner(currentPlayer)
+      setSelected(null)
+      setValidMoves([])
+      return
+    }
+
+    setBoard(nb)
+    boardRef.current = nb
+    setCastlingRights(newCastling)
+    castlingRightsRef.current = newCastling
+    setEnPassantTarget(newEnPassant)
+    enPassantTargetRef.current = newEnPassant
+    setMoves(m => m + 1)
+    setSelected(null)
+    setValidMoves([])
+
+    const next = currentPlayer === 'white' ? 'black' : 'white'
+    setCurrentPlayer(next)
+
+    // Check if next player has any legal moves
+    const nextLegal = getLegalMoves(nb, next, newCastling, newEnPassant)
+    if (nextLegal.length === 0) {
+      setGameOver(true)
+      if (isInCheck(nb, next)) {
+        setWinner(currentPlayer)
+      } else {
+        setIsStalemate(true)
+      }
+      return
+    }
+
+    if (gameMode === 'ai' && !gameOver) {
+      setTimeout(() => aiMove(), 100)
+    }
+  }
+
+  const handlePromoteSelect = (type: string) => {
+    if (!pendingPromotion) return
+    const { from, to } = pendingPromotion
+    setPendingPromotion(null)
+    completeMove(from, to, type)
+  }
 
   const aiMove = useCallback(() => {
     setThinking(true)
@@ -415,20 +512,15 @@ export default function ChessInternationalPage() {
       const currentCastling = castlingRightsRef.current
       const currentEnPassant = enPassantTargetRef.current
 
-      const filteredHumanMoves = getLegalMoves(currentBoard, humanColor, currentCastling, currentEnPassant)
-
-      if (filteredHumanMoves.length === 0) {
-        setGameOver(true)
-        setWinner(aiColor)
-        setThinking(false)
-        return
-      }
-
       const filteredAiMoves = getLegalMoves(currentBoard, aiColor, currentCastling, currentEnPassant)
 
       if (filteredAiMoves.length === 0) {
         setGameOver(true)
-        setWinner(humanColor)
+        if (isInCheck(currentBoard, aiColor)) {
+          setWinner(humanColor)
+        } else {
+          setIsStalemate(true)
+        }
         setThinking(false)
         return
       }
@@ -465,11 +557,22 @@ export default function ChessInternationalPage() {
       setMoves(m => m + 1)
       setCurrentPlayer(humanColor)
       setThinking(false)
+
+      // Check human checkmate / stalemate
+      const humanMoves = getLegalMoves(nb, humanColor, newCastling, newEnPassant)
+      if (humanMoves.length === 0) {
+        setGameOver(true)
+        if (isInCheck(nb, humanColor)) {
+          setWinner(aiColor)
+        } else {
+          setIsStalemate(true)
+        }
+      }
     }, 500)
   }, [difficulty, playerColor])
 
   const handleClick = (r: number, c: number) => {
-    if (gameOver || thinking) return
+    if (gameOver || thinking || pendingPromotion) return
     if (gameMode === 'ai' && currentPlayer !== playerColor) return
 
     if (selected) {
@@ -481,33 +584,15 @@ export default function ChessInternationalPage() {
 
       const isValid = validMoves.some(m => m.r === r && m.c === c)
       if (isValid) {
-        const move: Move = { from: selected, to: { r, c } }
-        const { board: nb, captured, newCastling, newEnPassant } = makeMove(board, move, castlingRights, enPassantTarget)
+        const piece = board[selected.r][selected.c]
+        const isPromotion = piece?.type === 'p' && (r === 0 || r === 7)
 
-        if (captured?.type === 'k') {
-          setBoard(nb)
-          boardRef.current = nb
-          setGameOver(true)
-          setWinner(currentPlayer)
-          setSelected(null)
-          setValidMoves([])
+        if (isPromotion) {
+          setPendingPromotion({ from: selected, to: { r, c }, color: piece.color })
           return
         }
 
-        setBoard(nb)
-        boardRef.current = nb
-        setCastlingRights(newCastling)
-        castlingRightsRef.current = newCastling
-        setEnPassantTarget(newEnPassant)
-        enPassantTargetRef.current = newEnPassant
-        setMoves(m => m + 1)
-        setSelected(null)
-        setValidMoves([])
-
-        const next = currentPlayer === 'white' ? 'black' : 'white'
-        setCurrentPlayer(next)
-
-        if (gameMode === 'ai' && !gameOver) aiMove()
+        completeMove(selected, { r, c })
         return
       }
 
@@ -539,6 +624,9 @@ export default function ChessInternationalPage() {
     setMoves(0)
     setGameOver(false)
     setWinner(null)
+    setIsStalemate(false)
+    setPendingPromotion(null)
+    setHistory([])
     setCastlingRights({ whiteKingside: true, whiteQueenside: true, blackKingside: true, blackQueenside: true })
     castlingRightsRef.current = { whiteKingside: true, whiteQueenside: true, blackKingside: true, blackQueenside: true }
     setEnPassantTarget(null)
@@ -616,29 +704,75 @@ export default function ChessInternationalPage() {
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
               <div className={`w-5 h-5 rounded-full ${currentPlayer === 'white' ? 'bg-white' : 'bg-black'} ring-2 ring-offset-2 ring-offset-[#080B14] ${currentPlayer === 'white' ? 'ring-white' : 'ring-gray-500'}`} />
-              <span className="text-white font-medium">
+              <span className="text-white font-medium flex items-center gap-2">
                 {gameOver ? (
-                  <span className={winner === 'white' ? 'text-[#10B981]' : 'text-[#EF4444]'}>{winner === 'white' ? '白方获胜！' : '黑方获胜！'}</span>
+                  isStalemate ? (
+                    <span className="text-amber-400 font-bold">平局 (逼和 Stalemate)</span>
+                  ) : (
+                    <span className={winner === 'white' ? 'text-[#10B981]' : 'text-[#EF4444]'}>{winner === 'white' ? '白方获胜！' : '黑方获胜！'}</span>
+                  )
                 ) : thinking ? (
                   <span className="text-[#06B6D4]">AI思考中...</span>
                 ) : (
-                  `${currentPlayer === 'white' ? '白方' : '黑方'}走棋`
+                  <>
+                    <span>{currentPlayer === 'white' ? '白方' : '黑方'}走棋</span>
+                    {inCheck && (
+                      <span className="px-2 py-0.5 rounded bg-rose-950/80 border border-rose-600 text-rose-300 text-xs font-bold animate-pulse flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3 text-rose-400" />
+                        将军！
+                      </span>
+                    )}
+                  </>
                 )}
               </span>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[#94A3B8] text-sm">步数: {moves}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[#94A3B8] text-sm mr-1">步数: {moves}</span>
+              <button
+                onClick={handleUndo}
+                disabled={history.length === 0 || thinking || Boolean(pendingPromotion)}
+                className="px-3 py-2 bg-slate-800 disabled:opacity-40 text-slate-200 rounded-lg hover:bg-slate-700 transition-all text-xs font-medium flex items-center gap-1"
+                title="悔棋"
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+                <span>悔棋</span>
+              </button>
               <button
                 onClick={resetGame}
-                className="px-4 py-2 bg-[#8B5CF6] text-white rounded-lg hover:bg-[#7C3AED] transition-all text-sm font-medium flex items-center gap-2"
+                className="px-3.5 py-2 bg-[#8B5CF6] text-white rounded-lg hover:bg-[#7C3AED] transition-all text-xs font-medium flex items-center gap-1"
               >
-                <RotateCcw className="w-4 h-4" />重新开始
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>重开</span>
               </button>
             </div>
           </div>
 
           {/* Board */}
-          <div className="glass-card p-4">
+          <div className="glass-card p-4 relative">
+            {/* Pawn Promotion Modal */}
+            {pendingPromotion && (
+              <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-30 rounded-xl flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
+                <span className="text-white font-bold text-base mb-1">小兵升变 (Pawn Promotion)</span>
+                <span className="text-xs text-slate-400 mb-4">请选择小兵要升变成为的高级兵种</span>
+                <div className="flex gap-3">
+                  {[
+                    { type: 'q', name: '后 (Queen)', symbol: pendingPromotion.color === 'white' ? '♕' : '♛' },
+                    { type: 'r', name: '车 (Rook)', symbol: pendingPromotion.color === 'white' ? '♖' : '♜' },
+                    { type: 'b', name: '象 (Bishop)', symbol: pendingPromotion.color === 'white' ? '♗' : '♝' },
+                    { type: 'n', name: '马 (Knight)', symbol: pendingPromotion.color === 'white' ? '♘' : '♞' },
+                  ].map((p) => (
+                    <button
+                      key={p.type}
+                      onClick={() => handlePromoteSelect(p.type)}
+                      className="p-4 bg-slate-900 hover:bg-indigo-950 border border-slate-700 hover:border-indigo-500 rounded-2xl flex flex-col items-center gap-1.5 transition-all shadow-xl hover:scale-105"
+                    >
+                      <span className="text-4xl filter drop-shadow">{p.symbol}</span>
+                      <span className="text-xs text-slate-200 font-semibold">{p.name.split(' ')[0]}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div
               className="grid gap-0 mx-auto shadow-xl rounded-lg overflow-hidden"
               style={{ gridTemplateColumns: `repeat(8, 1fr)`, maxWidth: '480px' }}
@@ -709,7 +843,7 @@ export default function ChessInternationalPage() {
             <div className="mt-6 glass-card p-8 text-center">
               <Trophy className="w-16 h-16 mx-auto mb-4 text-[#F59E0B]" />
               <h2 className="text-3xl font-bold text-white mb-2">
-                {winner === 'white' ? '白方获胜！' : '黑方获胜！'}
+                {isStalemate ? '平局 (逼和 Stalemate)！' : winner === 'white' ? '白方获胜！' : '黑方获胜！'}
               </h2>
               <p className="text-[#94A3B8] mb-6">共用 {moves} 步</p>
               <button
@@ -726,9 +860,12 @@ export default function ChessInternationalPage() {
             <p className="text-sm text-[#94A3B8]">
               <span className="text-[#8B5CF6] font-medium">规则：</span>
               {gameMode === 'ai' ? `你执${playerColor === 'white' ? '白方(先行)' : '黑方(后行)'}。` : '白方先手。'}
-              消灭对方国王获胜。兵只能前进（白向上，黑向下），吃子斜走。兵到达对方底线自动升变为后。车横竖走，马走日，象斜走，后横竖斜走，王一步一格。
+              将死对方国王获胜，支持王车易位、吃过路兵与小兵升变。无合法走步且未被将军时判为逼和（平局）。
             </p>
           </div>
+
+          {/* Non-intrusive AdSlot */}
+          <AdSlot placement="tool-bottom" className="mt-8" />
         </div>
       </main>
 

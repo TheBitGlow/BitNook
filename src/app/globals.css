@@ -3,37 +3,44 @@
 @tailwind utilities;
 
 :root {
-  /* 主背景 - 深宇宙黑 */
-  --bg-primary: #080B14;
-  --bg-secondary: #0D1117;
-  --bg-card: #111827;
-  --bg-card-hover: #1A2235;
+  /* Canvas & Surfaces */
+  --bg-base: #090D16;
+  --bg-surface: #0F1523;
+  --bg-surface-subtle: #141C2E;
+  --bg-surface-hover: #1A243B;
+  --bg-surface-active: #222F4C;
 
-  /* 品牌色 - 星云紫蓝渐变 */
-  --brand-primary: #6366F1;
-  --brand-secondary: #8B5CF6;
+  /* Legacy aliases */
+  --bg-primary: #090D16;
+  --bg-secondary: #0F1523;
+  --bg-card: #0F1523;
+  --bg-card-hover: #1A243B;
+
+  /* Typography */
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --text-link: #60A5FA;
+
+  /* Brand & Accents */
+  --brand-primary: #3B82F6;
+  --brand-secondary: #6366F1;
   --brand-accent: #06B6D4;
-  --brand-gradient: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #06B6D4 100%);
+  --brand-muted: rgba(59, 130, 246, 0.12);
 
-  /* 功能色 */
-  --color-gold: #F59E0B;
+  /* Functional / Status */
   --color-success: #10B981;
   --color-warning: #F59E0B;
   --color-danger: #EF4444;
   --color-info: #3B82F6;
 
-  /* 文字层级 */
-  --text-primary: #F1F5F9;
-  --text-secondary: #94A3B8;
-  --text-muted: #475569;
-  --text-link: #818CF8;
+  /* Borders */
+  --border-default: #1E293B;
+  --border-subtle: #162032;
+  --border-hover: #334155;
+  --border-focus: #3B82F6;
 
-  /* 边框 */
-  --border-default: rgba(99, 102, 241, 0.15);
-  --border-hover: rgba(99, 102, 241, 0.4);
-  --border-focus: rgba(99, 102, 241, 0.8);
-
-  /* 分类色标 */
+  /* Category Accents (restrained, professional) */
   --cat-daily: #3B82F6;
   --cat-finance: #10B981;
   --cat-health: #EF4444;
@@ -53,54 +60,91 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
-  background: var(--bg-primary);
+  background-color: var(--bg-base);
   color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  font-family: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+/* Tabular figures for financial and health metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Clean, modern card without garish blur or glowing edges */
+.clean-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* 玻璃拟态卡片 */
+.clean-card:hover {
+  border-color: var(--border-hover);
+  background-color: var(--bg-surface-hover);
+}
+
+/* Glass-card compatibility mapped to clean card */
 .glass-card {
-  background: rgba(17, 24, 39, 0.8);
-  border: 1px solid rgba(99, 102, 241, 0.15);
-  border-radius: 16px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  transition: all 0.2s ease;
 }
 
 .glass-card:hover {
-  border-color: rgba(99, 102, 241, 0.4);
-  background: rgba(26, 34, 53, 0.9);
-  transform: translateY(-3px);
-  box-shadow: 0 20px 40px rgba(99, 102, 241, 0.15);
+  border-color: var(--border-hover);
+  background-color: var(--bg-surface-hover);
 }
 
-/* 品牌渐变按钮 */
-.btn-gradient {
-  background: var(--brand-gradient);
-  border: none;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
-  font-weight: 600;
+/* Button utilities */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #3B82F6;
+  color: #FFFFFF;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
-.btn-gradient:hover {
-  transform: scale(1.02);
-  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+.btn-primary:hover {
+  background-color: #2563EB;
 }
 
-/* 分类标签颜色 */
+.btn-primary:active {
+  transform: scale(0.99);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #141C2E;
+  color: #F8FAFC;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid #1E293B;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background-color: #1A243B;
+  border-color: #334155;
+}
+
+/* Category utility badges */
 .cat-daily { color: var(--cat-daily); }
 .cat-finance { color: var(--cat-finance); }
 .cat-health { color: var(--cat-health); }
@@ -109,10 +153,9 @@ a {
 .cat-ai { color: var(--cat-ai); }
 .cat-game { color: var(--cat-game); }
 
-.bg-cat-daily { background-color: var(--cat-daily); }
-.bg-cat-finance { background-color: var(--cat-finance); }
-.bg-cat-health { background-color: var(--cat-health); }
-.bg-cat-convert { background-color: var(--cat-convert); }
-.bg-cat-network { background-color: var(--cat-network); }
-.bg-cat-ai { background-color: var(--cat-ai); }
-.bg-cat-game { background-color: var(--cat-game); }
+/* Focus styles for keyboard accessibility */
+:focus-visible {
+  outline: 2px solid #3B82F6;
+  outline-offset: 2px;
+}
+

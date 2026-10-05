@@ -1,148 +1,217 @@
 'use client'
 
-import { useState } from 'react'
-import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
-import { Activity, Scale } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import ToolLayout from '@/components/tools/ToolLayout'
+import { Activity, Scale, Award, Info } from 'lucide-react'
 
 export default function BMIPage() {
-  const [height, setHeight] = useState('')
-  const [weight, setWeight] = useState('')
-  const [bmi, setBmi] = useState<number | null>(null)
-  const [category, setCategory] = useState('')
-  const [categoryColor, setCategoryColor] = useState('')
+  const [height, setHeight] = useState<number>(172)
+  const [weight, setWeight] = useState<number>(66)
 
-  const calculateBMI = () => {
-    const h = parseFloat(height) / 100
-    const w = parseFloat(weight)
-    if (!h || !w || h <= 0 || w <= 0) return
+  const result = useMemo(() => {
+    if (height <= 0 || weight <= 0) return null
 
-    const bmiValue = w / (h * h)
-    setBmi(bmiValue)
+    const hMeters = height / 100
+    const bmiVal = Math.round((weight / (hMeters * hMeters)) * 10) / 10
 
-    if (bmiValue < 18.5) {
-      setCategory('偏瘦')
-      setCategoryColor('#3B82F6')
-    } else if (bmiValue < 24) {
-      setCategory('正常')
-      setCategoryColor('#10B981')
-    } else if (bmiValue < 28) {
-      setCategory('偏胖')
-      setCategoryColor('#F59E0B')
+    // Chinese standard (WS/T 428-2013)
+    let category = '正常'
+    let color = '#10B981'
+    let bg = 'rgba(16,185,129,0.15)'
+    let advice = '处于健康体重区间，请继续保持均衡饮食与规律运动。'
+
+    if (bmiVal < 18.5) {
+      category = '偏瘦 (体重过低)'
+      color = '#3B82F6'
+      bg = 'rgba(59,130,246,0.15)'
+      advice = '体重低于标准范围，建议适当增加优质蛋白质与能量摄入，排除消化吸收等健康问题。'
+    } else if (bmiVal < 24.0) {
+      category = '健康正常'
+      color = '#10B981'
+      bg = 'rgba(16,185,129,0.15)'
+      advice = '处于适宜体质指数范围，患心血管与代谢疾病的相对风险处于最低基线。'
+    } else if (bmiVal < 28.0) {
+      category = '超重 (偏胖)'
+      color = '#F59E0B'
+      bg = 'rgba(245,158,11,0.15)'
+      advice = '体质指数超出健康范围，建议减少高糖高油饮食，每周保持至少 150 分钟中等强度有氧运动。'
     } else {
-      setCategory('肥胖')
-      setCategoryColor('#EF4444')
+      category = '肥胖'
+      color = '#EF4444'
+      bg = 'rgba(239,68,68,0.15)'
+      advice = '已达临床肥胖标准，可能增加高血压、2型糖尿病与脂肪肝风险，建议咨询临床医生进行系统减重指导。'
     }
-  }
 
-  const idealWeight = height ? ((parseFloat(height) / 100) ** 2 * 22).toFixed(1) : null
+    // Ideal weight bounds for 18.5 ~ 23.9
+    const minIdealWeight = Math.round(18.5 * hMeters * hMeters * 10) / 10
+    const maxIdealWeight = Math.round(23.9 * hMeters * hMeters * 10) / 10
+
+    return {
+      bmi: bmiVal,
+      category,
+      color,
+      bg,
+      advice,
+      minIdealWeight,
+      maxIdealWeight,
+    }
+  }, [height, weight])
+
+  const faq = [
+    {
+      question: '中国成人 BMI 标准与世界卫生组织（WHO）国际标准有何不同？',
+      answer:
+        'WHO 国际标准中超重阈值为 25.0、肥胖为 30.0。然而流行病学研究证实，东亚人群在相对较低的 BMI 下就更容易堆积腹部内脏脂肪并表现出代谢综合征。因此《中国成人超重和肥胖症预防控制指南》（WS/T 428-2013）将 24.0 定为超重界限、28.0 定为肥胖界限，更贴合国人健康风险评估。',
+    },
+    {
+      question: '肌肉量很大的人（如健美/力量运动员）BMI 超标代表不健康吗？',
+      answer:
+        '不代表。BMI 计算公式仅考虑总质量与身高平方的比值，无法区分骨骼、肌肉与脂肪组织。经常进行阻力力量训练的人群骨骼肌充盈，可能 BMI 偏高但体脂率处于健康水平，此时应结合腰围、皮褶厚度或体脂仪综合评估。',
+    },
+    {
+      question: '为什么老年人的 BMI 适宜范围可以略微宽松？',
+      answer:
+        '现代老年医学研究（如“肥胖悖论”）表明，65岁以上老年人适度储备营养、BMI 维持在 20.0 至 26.9 之间，在抵抗感染应激与预防骨质疏松/肌少症方面具有更好的保护效益。',
+    },
+  ]
+
+  const howToSteps = [
+    '准确测量并输入赤足身高（cm）与清晨空腹体重（kg）。',
+    '系统根据国家卫健委《中国成人体重判定》行业标准实时计算 BMI 指数。',
+    '对照健康区间色卡了解当前所处阶段及对应身高的理想体重范围（kg）。',
+    '若 BMI 超出正常范围，可参考建议调整膳食结构并安排运动计划。',
+  ]
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
-
-      <main className="flex-1 py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-[#EF4444]/20 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-[#EF4444]" />
-              </div>
-              <h1 className="text-2xl font-bold text-white">BMI 计算器</h1>
+    <ToolLayout
+      toolSlug="bmi"
+      principlesTitle="BMI 体质指数计算公式与标准依据"
+      principles={
+        <>
+          <p>
+            <strong>1. BMI 数学公式：</strong>
+            {'BMI = 体重(kg) / [身高(m)]²'}
+            。由 19 世纪比利时统计学家凯特勒提出，是国际公认衡量人体胖瘦程度与健康风险最简便普及的筛查指标。
+          </p>
+          <p>
+            <strong>2. 中国现行国家行业标准（WS/T 428-2013）：</strong>
+            <br />
+            - 体重过低：BMI &lt; 18.5
+            <br />
+            - 体重正常：18.5 ≤ BMI &lt; 24.0
+            <br />
+            - 超重：24.0 ≤ BMI &lt; 28.0
+            <br />
+            - 肥胖：BMI ≥ 28.0
+          </p>
+          <p>
+            <strong>3. 适用人群与局限性：</strong>
+            本标准专为 18 周岁及以上中国成年人设计。未成年人骨骼骨量发育迅速、孕产妇体液与胎儿重量增加、力量运动员骨骼肌比例极高，均不可直接套用本常规 BMI 切点判定健康状态。
+          </p>
+        </>
+      }
+      howToSteps={howToSteps}
+      faq={faq}
+      disclaimer="【适用人群与医学限制说明】本工具严格依据中华人民共和国卫生行业标准《成人体重判定》（WS/T 428-2013）设计，仅适用于 18 周岁及以上中国健康成年人。不适用于儿童、生长发育期青少年、孕妇、乳母、水肿患者以及竞技运动员。测算结果为群体常态化健康参考，不构成任何医疗诊断或治疗承诺。"
+    >
+      <div className="space-y-6">
+        {/* Input Card */}
+        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+                身高 (cm)
+              </label>
+              <input
+                type="number"
+                min="80"
+                max="250"
+                value={height}
+                onChange={(e) => setHeight(Math.max(1, Number(e.target.value)))}
+                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-center text-white focus:border-[#6366F1] focus:outline-none"
+              />
             </div>
-            <p className="text-[#94A3B8]">体质指数评估，了解您的健康状态</p>
-          </div>
 
-          {/* Input Form */}
-          <div className="glass-card p-6 mb-6">
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div>
-                <label className="block text-sm text-[#94A3B8] mb-2">身高 (cm)</label>
-                <input
-                  type="number"
-                  value={height}
-                  onChange={(e) => setHeight(e.target.value)}
-                  placeholder="170"
-                  className="w-full px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white placeholder-[#475569] focus:outline-none focus:border-[rgba(99,102,241,0.4)]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-[#94A3B8] mb-2">体重 (kg)</label>
-                <input
-                  type="number"
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  placeholder="65"
-                  className="w-full px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white placeholder-[#475569] focus:outline-none focus:border-[rgba(99,102,241,0.4)]"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+                体重 (kg)
+              </label>
+              <input
+                type="number"
+                min="20"
+                max="300"
+                step="0.5"
+                value={weight}
+                onChange={(e) => setWeight(Math.max(1, Number(e.target.value)))}
+                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-center text-white focus:border-[#6366F1] focus:outline-none"
+              />
             </div>
-
-            <button
-              onClick={calculateBMI}
-              className="w-full btn-gradient py-3"
-            >
-              计算 BMI
-            </button>
-          </div>
-
-          {/* Results */}
-          {bmi && (
-            <div className="glass-card p-6 mb-6">
-              <div className="text-center mb-6">
-                <p className="text-sm text-[#94A3B8] mb-2">您的 BMI 指数</p>
-                <p className="text-5xl font-bold" style={{ color: categoryColor }}>
-                  {bmi.toFixed(1)}
-                </p>
-                <span
-                  className="inline-block mt-3 px-4 py-1.5 rounded-full text-sm font-medium"
-                  style={{ backgroundColor: `${categoryColor}20`, color: categoryColor }}
-                >
-                  {category}
-                </span>
-              </div>
-
-              {/* BMI Scale */}
-              <div className="h-4 rounded-full overflow-hidden flex mb-4">
-                <div className="flex-1 bg-[#3B82F6]" />
-                <div className="flex-1 bg-[#10B981]" />
-                <div className="flex-1 bg-[#F59E0B]" />
-                <div className="flex-1 bg-[#EF4444]" />
-              </div>
-              <div className="flex justify-between text-xs text-[#94A3B8] mb-6">
-                <span>偏瘦&lt;18.5</span>
-                <span>正常18.5-24</span>
-                <span>偏胖24-28</span>
-                <span>肥胖&gt;28</span>
-              </div>
-
-              {/* Ideal Weight */}
-              {idealWeight && (
-                <div className="p-4 bg-[#111827]/50 rounded-xl flex items-center gap-3">
-                  <Scale className="w-5 h-5 text-[#6366F1]" />
-                  <div>
-                    <p className="text-sm text-[#94A3B8]">理想体重范围</p>
-                    <p className="text-white font-medium">
-                      {(parseFloat(idealWeight) * 0.9).toFixed(1)} - {(parseFloat(idealWeight) * 1.1).toFixed(1)} kg
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Disclaimer */}
-          <div className="p-4 bg-[#111827]/50 rounded-xl border border-[rgba(99,102,241,0.1)]">
-            <p className="text-sm text-[#94A3B8]">
-              <span className="text-[#F59E0B]">免责声明：</span>
-              BMI 是常用的健康指标，但不能完全反映身体组成。对于运动员、老年人、孕妇等特殊人群，请咨询专业医生。
-            </p>
           </div>
         </div>
-      </main>
 
-      <Footer />
-    </div>
+        {/* Results Banner */}
+        {result && (
+          <div
+            className="rounded-2xl border p-6 text-center transition-all"
+            style={{ borderColor: result.color, backgroundColor: result.bg }}
+          >
+            <p className="text-xs uppercase tracking-wider text-[#94A3B8] mb-1">
+              您的体质指数 (BMI)
+            </p>
+            <p
+              className="text-5xl font-extrabold font-mono tracking-tight my-2"
+              style={{ color: result.color }}
+            >
+              {result.bmi}
+            </p>
+            <span
+              className="inline-block px-4 py-1 rounded-full text-xs font-bold my-1"
+              style={{ color: result.color, backgroundColor: 'rgba(0,0,0,0.3)' }}
+            >
+              {result.category}
+            </span>
+            <p className="text-xs sm:text-sm text-[#CBD5E1] max-w-lg mx-auto mt-2">
+              {result.advice}
+            </p>
+
+            {/* Spectrum Bar */}
+            <div className="max-w-md mx-auto mt-6">
+              <div className="h-3 rounded-full overflow-hidden flex">
+                <div className="w-[18.5%] bg-[#3B82F6]" title="偏瘦 <18.5" />
+                <div className="w-[27.5%] bg-[#10B981]" title="正常 18.5-23.9" />
+                <div className="w-[20%] bg-[#F59E0B]" title="超重 24.0-27.9" />
+                <div className="w-[34%] bg-[#EF4444]" title="肥胖 ≥28.0" />
+              </div>
+              <div className="flex justify-between text-[10px] text-[#94A3B8] mt-1.5 font-mono">
+                <span>偏瘦 (&lt;18.5)</span>
+                <span>正常 (18.5-23.9)</span>
+                <span>超重 (24-27.9)</span>
+                <span>肥胖 (≥28)</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Ideal Weight Card */}
+        {result && (
+          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-5 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#6366F1]/20 flex items-center justify-center">
+                <Scale className="w-5 h-5 text-[#6366F1]" />
+              </div>
+              <div>
+                <p className="text-xs text-[#94A3B8]">基于您 {height}cm 身高的推荐健康体重范围</p>
+                <p className="text-lg font-bold text-white font-mono">
+                  {result.minIdealWeight} ~ {result.maxIdealWeight} kg
+                </p>
+              </div>
+            </div>
+            <div className="text-xs text-[#64748B]">
+              按 BMI 18.5 ~ 23.9 正常标准换算
+            </div>
+          </div>
+        )}
+      </div>
+    </ToolLayout>
   )
 }

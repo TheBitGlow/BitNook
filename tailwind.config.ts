@@ -9,21 +9,38 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        'bg-primary': '#080B14',
-        'bg-secondary': '#0D1117',
-        'bg-card': '#111827',
-        'bg-card-hover': '#1A2235',
-        'brand-primary': '#6366F1',
-        'brand-secondary': '#8B5CF6',
+        // Base canvas & surfaces
+        'bg-base': '#090D16',
+        'bg-surface': '#0F1523',
+        'bg-surface-subtle': '#141C2E',
+        'bg-surface-hover': '#1A243B',
+        'bg-surface-active': '#222F4C',
+
+        // Legacy background aliases for compatibility
+        'bg-primary': '#090D16',
+        'bg-secondary': '#0F1523',
+        'bg-card': '#0F1523',
+        'bg-card-hover': '#1A243B',
+
+        // Brand & Accents
+        'brand-primary': '#3B82F6',
+        'brand-secondary': '#6366F1',
         'brand-accent': '#06B6D4',
+        'brand-muted': 'rgba(59, 130, 246, 0.12)',
+
+        // Status & Functional
         'gold': '#F59E0B',
         'success': '#10B981',
         'warning': '#F59E0B',
         'danger': '#EF4444',
         'info': '#3B82F6',
-        'text-primary': '#F1F5F9',
+
+        // Typography
+        'text-primary': '#F8FAFC',
         'text-secondary': '#94A3B8',
-        'text-muted': '#475569',
+        'text-muted': '#64748B',
+
+        // Categories (refined, less neon)
         'cat-daily': '#3B82F6',
         'cat-finance': '#10B981',
         'cat-health': '#EF4444',
@@ -32,13 +49,14 @@ const config: Config = {
         'cat-ai': '#06B6D4',
         'cat-game': '#EC4899',
       },
-      backgroundImage: {
-        'brand-gradient': 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #06B6D4 100%)',
-      },
       borderColor: {
-        'brand': 'rgba(99, 102, 241, 0.15)',
-        'brand-hover': 'rgba(99, 102, 241, 0.4)',
-        'brand-focus': 'rgba(99, 102, 241, 0.8)',
+        'base': '#1E293B',
+        'subtle': '#162032',
+        'hover': '#334155',
+        'focus': '#3B82F6',
+        'brand': 'rgba(59, 130, 246, 0.25)',
+        'brand-hover': 'rgba(59, 130, 246, 0.5)',
+        'brand-focus': '#3B82F6',
       },
     },
   },

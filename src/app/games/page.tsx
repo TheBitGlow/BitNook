@@ -1,66 +1,177 @@
 'use client'
 
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
-import { Grid3X3, Ghost, Crosshair, Blocks, Gamepad2, Crown, Castle, Spade } from 'lucide-react'
+import AdSlot from '@/components/ads/AdSlot'
+import DynamicIcon from '@/components/common/DynamicIcon'
+import { getAllGames, GameInfo } from '@/config/games'
 import { useI18n } from '@/lib/i18n'
+import { useRecentGames } from '@/lib/storage'
+import { Gamepad2, Sparkles, ArrowRight, History, Play } from 'lucide-react'
 
-const games = [
-  { name: '俄罗斯方块', enName: 'Tetris', slug: 'tetris', icon: Blocks, color: '#EC4899', desc: '经典方块消除游戏', enDesc: 'Classic block-clearing game', difficulty: '简单', enDifficulty: 'Easy', players: 1, href: '/games/tetris' },
-  { name: '扫雷', enName: 'Minesweeper', slug: 'minesweeper', icon: Ghost, color: '#6366F1', desc: '扫雷专家挑战', enDesc: 'Classic minesweeper challenge', difficulty: '中等', enDifficulty: 'Medium', players: 1, href: '/games/minesweeper' },
-  { name: '贪吃蛇', enName: 'Snake', slug: 'snake', icon: Crosshair, color: '#10B981', desc: '控制蛇吃到更多食物', enDesc: 'Guide the snake to eat more food', difficulty: '简单', enDifficulty: 'Easy', players: 1, href: '/games/snake' },
-  { name: '五子棋', enName: 'Gomoku', slug: 'gomoku', icon: Grid3X3, color: '#F59E0B', desc: '双人对弈或AI对战', enDesc: 'Play against another player or AI', difficulty: '中等', enDifficulty: 'Medium', players: '1-2', href: '/games/gomoku' },
-  { name: '消消乐', enName: 'Match-3', slug: 'match3', icon: Gamepad2, color: '#EF4444', desc: '宝石消除闯关', enDesc: 'Match gems and clear the board', difficulty: '简单', enDifficulty: 'Easy', players: 1, href: '/games/match3' },
-  { name: '国际象棋', enName: 'International Chess', slug: 'chess-international', icon: Crown, color: '#8B5CF6', desc: '全球最流行的棋类游戏', enDesc: 'The world famous strategy board game', difficulty: '困难', enDifficulty: 'Hard', players: '1-2', href: '/games/chess-international' },
-  { name: '中国象棋', enName: 'Chinese Chess', slug: 'chess-chinese', icon: Castle, color: '#EC4899', desc: '中国传统棋类游戏', enDesc: 'Traditional Chinese strategy board game', difficulty: '困难', enDifficulty: 'Hard', players: '1-2', href: '/games/chess-chinese' },
-  { name: '空当接龙', enName: 'FreeCell', slug: 'freecell', icon: Spade, color: '#06B6D4', desc: '纸牌接龙挑战', enDesc: 'Classic solitaire card challenge', difficulty: '中等', enDifficulty: 'Medium', players: 1, href: '/games/freecell' },
-]
+type GameCategoryFilter = 'all' | 'puzzle' | 'arcade' | 'strategy' | 'card'
 
 export default function GamesPage() {
+  const [selectedCategory, setSelectedCategory] = useState<GameCategoryFilter>('all')
   const { locale } = useI18n()
   const isZh = locale === 'zh'
+  const games = useMemo(() => getAllGames(), [])
+  const { recentGames, isLoaded: recentLoaded } = useRecentGames()
+
+  const gameMap = useMemo(() => {
+    const map = new Map<string, GameInfo>()
+    for (const g of games) {
+      map.set(g.slug, g)
+    }
+    return map
+  }, [games])
+
+  const filteredGames = useMemo(() => {
+    if (selectedCategory === 'all') return games
+    return games.filter((g) => g.category === selectedCategory)
+  }, [games, selectedCategory])
+
+  const recentGameItems = useMemo(() => {
+    if (!recentLoaded) return []
+    return recentGames.map((slug) => gameMap.get(slug)).filter(Boolean) as GameInfo[]
+  }, [recentGames, recentLoaded, gameMap])
+
+  const categoryLabels: Record<GameCategoryFilter, { zh: string; en: string }> = {
+    all: { zh: '全部游戏', en: 'All Games' },
+    puzzle: { zh: '益智解谜', en: 'Puzzle' },
+    arcade: { zh: '休闲街机', en: 'Arcade' },
+    strategy: { zh: '策略棋盘', en: 'Strategy' },
+    card: { zh: '经典卡牌', en: 'Card' },
+  }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-[#090D16] text-slate-100">
       <Header />
 
-      <main className="flex-1 py-12 px-4">
+      <main className="flex-1 py-10 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
           {/* Page Header */}
-          <div className="mb-10">
-            <h1 className="text-3xl font-bold text-white mb-4">{isZh ? '游戏大厅' : 'Games Hall'}</h1>
-            <p className="text-[#94A3B8]">{isZh ? '8款经典游戏，支持单人游玩、双人对弈和 AI 对战' : '8 classic games with solo play, two-player modes, and AI opponents'}</p>
+          <div className="text-center max-w-2xl mx-auto mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/20 bg-blue-500/10 text-blue-400 text-xs font-medium mb-3">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{isZh ? '纯前端解压小游戏 · 零安装即开即玩' : 'Pure Frontend Mini-Games · Zero Install'}</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-2.5">
+              {isZh ? '游戏大厅' : 'Games Hall'}
+            </h1>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              {isZh
+                ? `精选 ${games.length} 款经典休闲益智与策略棋类游戏，支持单人闯关、本地双人对弈与智能 AI。`
+                : `Enjoy ${games.length} classic puzzle and strategy games featuring single player, local PvP, and heuristic AI.`}
+            </p>
+          </div>
+
+          <AdSlot slotId="games-top-banner" format="horizontal" />
+
+          {/* Recently Played Shelf */}
+          {recentGameItems.length > 0 && (
+            <div className="mt-8 mb-8 p-5 rounded-2xl border border-[#1E293B] bg-[#0F1523]">
+              <div className="flex items-center justify-between mb-3.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
+                  <History className="w-4 h-4 text-emerald-400" />
+                  <span>{isZh ? '最近在玩' : 'Recently Played'}</span>
+                </div>
+                <span className="text-[11px] text-slate-500 font-mono">
+                  {isZh ? `${recentGameItems.length} 款记录` : `${recentGameItems.length} games`}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {recentGameItems.map((game) => (
+                  <Link
+                    key={`recent-${game.slug}`}
+                    href={game.href}
+                    className="group flex items-center gap-3 p-3 rounded-xl border border-[#1E293B] bg-[#141C2E] hover:border-slate-700 hover:bg-[#1A243B] transition"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-[#090D16] border border-[#1E293B] flex items-center justify-center shrink-0 text-blue-400 group-hover:scale-105 transition-transform">
+                      <DynamicIcon name={game.iconName} className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-semibold text-white group-hover:text-blue-400 transition-colors truncate">
+                        {isZh ? game.name : game.nameEn}
+                      </h4>
+                      <span className="text-[10px] text-slate-400 capitalize">
+                        {game.category}
+                      </span>
+                    </div>
+                    <Play className="w-3 h-3 text-slate-500 group-hover:text-emerald-400 transition-colors shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Category Filter Pills */}
+          <div className="my-6 flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
+            {(['all', 'puzzle', 'arcade', 'strategy', 'card'] as GameCategoryFilter[]).map((cat) => {
+              const isActive = selectedCategory === cat
+              const count = cat === 'all' ? games.length : games.filter((g) => g.category === cat).length
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition flex items-center gap-1.5 ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                      : 'bg-[#0F1523] border border-[#1E293B] text-slate-400 hover:text-white hover:bg-[#141C2E]'
+                  }`}
+                >
+                  <span>{isZh ? categoryLabels[cat].zh : categoryLabels[cat].en}</span>
+                  <span className="text-[10px] opacity-75 font-mono">({count})</span>
+                </button>
+              )
+            })}
           </div>
 
           {/* Games Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {games.map((game) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {filteredGames.map((game) => (
               <Link
                 key={game.slug}
                 href={game.href}
-                className="glass-card overflow-hidden group"
+                className="group rounded-2xl border border-[#1E293B] bg-[#0F1523] p-5 hover:border-slate-700 hover:bg-[#141C2E] transition-all flex flex-col justify-between shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
-                <div
-                  className="h-32 flex items-center justify-center"
-                  style={{ background: `linear-gradient(135deg, ${game.color}20 0%, ${game.color}05 100%)` }}
-                >
-                  <game.icon className="w-16 h-16 group-hover:scale-110 transition-transform" style={{ color: game.color }} />
-                </div>
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold text-white">{isZh ? game.name : game.enName}</h3>
-                  </div>
-                  <p className="text-sm text-[#475569] mb-3">{isZh ? game.desc : game.enDesc}</p>
-                  <div className="flex items-center gap-4 text-xs text-[#94A3B8]">
-                    <span className="flex items-center gap-1">
-                      <span style={{ color: game.color }}>●</span> {isZh ? game.difficulty : game.enDifficulty}
+                <div>
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-blue-400 group-hover:scale-105 group-hover:text-white transition-all">
+                      <DynamicIcon name={game.iconName} className="w-6 h-6" />
+                    </div>
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#141C2E] text-slate-400 border border-[#1E293B] font-mono">
+                      {game.category}
                     </span>
-                    <span>{game.players === 1 ? (isZh ? '单人' : 'Single player') : (isZh ? `${game.players}人` : `${game.players} players`)}</span>
                   </div>
+
+                  <h3 className="font-bold text-white group-hover:text-blue-400 transition-colors text-sm mb-1.5">
+                    {isZh ? game.name : game.nameEn}
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
+                    {isZh ? game.description : game.descriptionEn}
+                  </p>
+                </div>
+
+                <div className="mt-5 pt-3 border-t border-[#1E293B] flex items-center justify-between text-xs text-slate-500">
+                  <span className="inline-flex items-center gap-1.5 text-slate-400 font-medium text-[11px]">
+                    <Gamepad2 className="w-3.5 h-3.5 text-blue-400" />
+                    <span>{isZh ? '即点即玩' : 'Play Now'}</span>
+                  </span>
+                  <span className="text-slate-400 group-hover:text-blue-400 font-medium inline-flex items-center gap-1 text-[11px] transition-colors">
+                    <span>{isZh ? '进入' : 'Launch'}</span>
+                    <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
                 </div>
               </Link>
             ))}
+          </div>
+
+          <div className="mt-14">
+            <AdSlot slotId="games-bottom-banner" format="horizontal" />
           </div>
         </div>
       </main>

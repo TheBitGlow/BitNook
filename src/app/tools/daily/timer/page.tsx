@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import { Play, Pause, RotateCcw, Trash2, Plus, Clock } from 'lucide-react'
@@ -20,28 +20,22 @@ export default function TimerPage() {
     { id: 1, label: '计时器 1', seconds: 0, isRunning: false, color: colors[0] }
   ])
   const [newLabel, setNewLabel] = useState('')
-  const intervalRefs = useRef<{ [key: number]: NodeJS.Timeout }>({})
+
+  const hasRunning = timers.some((t) => t.isRunning)
 
   useEffect(() => {
-    timers.forEach(timer => {
-      if (timer.isRunning) {
-        intervalRefs.current[timer.id] = setInterval(() => {
-          setTimers(prev => prev.map(t =>
-            t.id === timer.id ? { ...t, seconds: t.seconds + 1 } : t
-          ))
-        }, 1000)
-      } else {
-        if (intervalRefs.current[timer.id]) {
-          clearInterval(intervalRefs.current[timer.id])
-          delete intervalRefs.current[timer.id]
-        }
-      }
-    })
+    if (!hasRunning) return
+
+    const interval = setInterval(() => {
+      setTimers((prev) =>
+        prev.map((t) => (t.isRunning ? { ...t, seconds: t.seconds + 1 } : t))
+      )
+    }, 1000)
 
     return () => {
-      Object.values(intervalRefs.current).forEach(clearInterval)
+      clearInterval(interval)
     }
-  }, [timers.map(t => t.isRunning).join(',')])
+  }, [hasRunning])
 
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600)
@@ -63,10 +57,6 @@ export default function TimerPage() {
   }
 
   const deleteTimer = (id: number) => {
-    if (intervalRefs.current[id]) {
-      clearInterval(intervalRefs.current[id])
-      delete intervalRefs.current[id]
-    }
     setTimers(prev => prev.filter(t => t.id !== id))
   }
 

@@ -1,150 +1,241 @@
 'use client'
 
-import { useState } from 'react'
-import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
-import { Clock } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import ToolLayout from '@/components/tools/ToolLayout'
+import {
+  calculateRetirement,
+  RetirementCategory,
+  RETIREMENT_POLICY_METADATA,
+} from '@/lib/finance/retirement'
+import { Calendar, Clock, AlertCircle, Award, CheckCircle2, ShieldCheck } from 'lucide-react'
 
 export default function RetirementPage() {
-  const [birthYear, setBirthYear] = useState(1990)
-  const [birthMonth, setBirthMonth] = useState(1)
-  const [gender, setGender] = useState<'male' | 'female'>('male')
+  const [birthYear, setBirthYear] = useState<number>(1985)
+  const [birthMonth, setBirthMonth] = useState<number>(6)
+  const [category, setCategory] = useState<RetirementCategory>('male')
 
-  const calculateRetirement = () => {
-    const currentYear = new Date().getFullYear()
-    const age = currentYear - birthYear
+  const result = useMemo(() => {
+    return calculateRetirement(birthYear, birthMonth, category)
+  }, [birthYear, birthMonth, category])
 
-    // 2025年渐进式退休政策 (simplified)
-    let retirementYear: number
-    let retirementAge: number
+  const faq = [
+    {
+      question: '国家渐进式延迟法定退休年龄是何时开始施行的？',
+      answer:
+        '依据第十四届全国人民代表大会常务委员会第十一次会议通过的《关于实施渐进式延迟法定退休年龄的决定》，该政策自 2025 年 1 月 1 日起正式施行，用 15 年时间逐步将男职工法定退休年龄延迟至 63 周岁，女职工分别延迟至 58 周岁、55 周岁。',
+    },
+    {
+      question: '什么是“自愿、弹性”退休原则？',
+      answer:
+        '职工达到最低缴费年限，可以自愿选择弹性提前退休，提前时间最长不超过3年，且不得低于原法定退休年龄；达到法定退休年龄后，所在单位同意的，可以自愿选择弹性延迟退休，延迟时间最长不超过3年。',
+    },
+    {
+      question: '领取基本养老金的最低缴费年限是如何调整的？',
+      answer:
+        '从 2030 年 1 月 1 日起，将职工按月领取基本养老金最低缴费年限由 15 年逐步提高至 20 年，每年提高 6 个月。2030 年前达到法定退休年龄的，最低缴费年限依然为 15 年。',
+    },
+  ]
 
-    if (gender === 'male') {
-      if (birthYear <= 1965) { retirementAge = 60 }
-      else if (birthYear <= 1970) { retirementAge = 63 }
-      else if (birthYear <= 1975) { retirementAge = 64 }
-      else { retirementAge = 65 }
-    } else {
-      if (birthYear <= 1970) { retirementAge = 50 }
-      else if (birthYear <= 1975) { retirementAge = 55 }
-      else if (birthYear <= 1980) { retirementAge = 58 }
-      else { retirementAge = 60 }
-    }
-
-    retirementYear = birthYear + retirementAge
-
-    const birthDate = new Date(birthYear, birthMonth - 1)
-    const retirementDate = new Date(retirementYear, birthMonth - 1)
-
-    return {
-      currentAge: age,
-      retirementAge,
-      retirementYear,
-      yearsToRetirement: retirementYear - currentYear,
-      retirementDate: retirementDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' })
-    }
-  }
-
-  const result = calculateRetirement()
+  const howToSteps = [
+    '选择出生年份（例如 1975、1985、1990）与具体出生月份。',
+    '选择原退休人员身份类别：男职工、女职工（干部/管理技术岗）、女职工（工人岗）。',
+    '系统自动按国家法定渐进改革月度对照公式精算延迟月份与退休年月。',
+    '查阅弹性提前与延迟退休范围、以及该年份对应的最低基本养老保险缴费年限。',
+  ]
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
-
-      <main className="flex-1 py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-[#10B981]/20 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-[#10B981]" />
-              </div>
-              <h1 className="text-2xl font-bold text-white">退休计算器</h1>
-            </div>
-            <p className="text-[#94A3B8]">按最新延迟退休政策计算</p>
+    <ToolLayout
+      toolSlug="retirement"
+      principlesTitle="渐进式延迟法定退休年龄计算规则"
+      principles={
+        <>
+          <p>
+            <strong>1. 渐进式延迟节奏：</strong>自 2025 年 1 月 1 日起：
+            <br />
+            - 男职工：原 60 周岁，每 4 个月延迟 1 个月，逐步延迟至 63 周岁；
+            <br />
+            - 原 55 周岁女职工（管理/技术岗）：每 4 个月延迟 1 个月，逐步延迟至 58 周岁；
+            <br />
+            - 原 50 周岁女职工（工人岗）：每 2 个月延迟 1 个月，逐步延迟至 55 周岁。
+          </p>
+          <p>
+            <strong>2. 弹性退休边界约束：</strong>提前退休不得低于原法定退休年龄（男60岁、女干部55岁、女工人50岁），且须满足届时最低缴费年限。延迟退休需经用人单位协商一致，最长不超3年。
+          </p>
+          <p>
+            <strong>3. 政策依据：</strong>{RETIREMENT_POLICY_METADATA.policyName}（{RETIREMENT_POLICY_METADATA.passDate} 通过，{RETIREMENT_POLICY_METADATA.effectiveDate} 施行）。
+          </p>
+        </>
+      }
+      howToSteps={howToSteps}
+      faq={faq}
+      disclaimer={RETIREMENT_POLICY_METADATA.disclaimer}
+    >
+      <div className="space-y-6">
+        {/* Input Card */}
+        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
+          {/* Metadata Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(99,102,241,0.1)] pb-4 mb-6 text-xs text-[#94A3B8]">
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 text-[#10B981]" />
+              政策来源：{RETIREMENT_POLICY_METADATA.source}
+            </span>
+            <span className="rounded-full bg-[#1E293B] px-3 py-1 font-mono text-[#CBD5E1]">
+              政策生效时间：{RETIREMENT_POLICY_METADATA.effectiveDate}
+            </span>
           </div>
 
-          {/* Input */}
-          <div className="glass-card p-6 mb-6">
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm text-[#94A3B8] mb-2">出生年份</label>
-                <input
-                  type="number"
-                  value={birthYear}
-                  onChange={(e) => setBirthYear(Number(e.target.value))}
-                  className="w-full px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-[#94A3B8] mb-2">出生月份</label>
-                <select
-                  value={birthMonth}
-                  onChange={(e) => setBirthMonth(Number(e.target.value))}
-                  className="w-full px-4 py-3 bg-[#080B14] border border-[rgba(99,102,241,0.15)] rounded-xl text-white"
-                >
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <option key={i + 1} value={i + 1}>{i + 1}月</option>
-                  ))}
-                </select>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            <div>
+              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+                出生年份
+              </label>
+              <input
+                type="number"
+                min="1940"
+                max="2010"
+                value={birthYear}
+                onChange={(e) => setBirthYear(Number(e.target.value))}
+                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-xl font-bold font-mono text-white focus:border-[#6366F1] focus:outline-none"
+              />
             </div>
 
             <div>
-              <label className="block text-sm text-[#94A3B8] mb-2">性别</label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={gender === 'male'}
-                    onChange={() => setGender('male')}
-                    className="accent-[#6366F1]"
-                  />
-                  <span className="text-[#94A3B8]">男性</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={gender === 'female'}
-                    onChange={() => setGender('female')}
-                    className="accent-[#6366F1]"
-                  />
-                  <span className="text-[#94A3B8]">女性</span>
-                </label>
+              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+                出生月份
+              </label>
+              <select
+                aria-label="出生月份"
+                value={birthMonth}
+                onChange={(e) => setBirthMonth(Number(e.target.value))}
+                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-white font-medium focus:border-[#6366F1] focus:outline-none"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <option key={m} value={m}>
+                    {m} 月
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-[#94A3B8] mb-2">
+                原法定退休类别与人员身份
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCategory('male')}
+                  className={`rounded-xl p-3.5 border text-left transition-all ${
+                    category === 'male'
+                      ? 'border-[#6366F1] bg-[#6366F1]/15 text-white shadow'
+                      : 'border-[rgba(99,102,241,0.15)] bg-[#070A12] text-[#94A3B8] hover:text-white'
+                  }`}
+                >
+                  <div className="font-semibold text-sm">男职工</div>
+                  <div className="text-[11px] opacity-75 mt-1">原60周岁 → 逐步延至63周岁</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCategory('female-cadre')}
+                  className={`rounded-xl p-3.5 border text-left transition-all ${
+                    category === 'female-cadre'
+                      ? 'border-[#6366F1] bg-[#6366F1]/15 text-white shadow'
+                      : 'border-[rgba(99,102,241,0.15)] bg-[#070A12] text-[#94A3B8] hover:text-white'
+                  }`}
+                >
+                  <div className="font-semibold text-sm">女干部 / 管理与技术岗</div>
+                  <div className="text-[11px] opacity-75 mt-1">原55周岁 → 逐步延至58周岁</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCategory('female-worker')}
+                  className={`rounded-xl p-3.5 border text-left transition-all ${
+                    category === 'female-worker'
+                      ? 'border-[#6366F1] bg-[#6366F1]/15 text-white shadow'
+                      : 'border-[rgba(99,102,241,0.15)] bg-[#070A12] text-[#94A3B8] hover:text-white'
+                  }`}
+                >
+                  <div className="font-semibold text-sm">女工人</div>
+                  <div className="text-[11px] opacity-75 mt-1">原50周岁 → 逐步延至55周岁</div>
+                </button>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Result */}
-          <div className="glass-card p-6 text-center mb-6">
-            <p className="text-sm text-[#94A3B8] mb-2">法定退休时间</p>
-            <p className="text-4xl font-bold text-[#6366F1] mb-2">{result.retirementDate}</p>
-            <p className="text-[#94A3B8]">
-              退休年龄 {result.retirementAge} 岁，距今还有 {result.yearsToRetirement} 年
+        {/* Results Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
+            <p className="text-xs text-[#94A3B8] mb-1">改革后法定退休时间</p>
+            <p className="text-3xl font-extrabold text-[#6366F1] font-mono tracking-tight my-1">
+              {result.statutoryRetirementDate}
+            </p>
+            <p className="text-xs text-[#94A3B8]">
+              退休年龄：
+              <span className="font-bold text-white">
+                {result.statutoryRetirementAge.years} 岁
+                {result.statutoryRetirementAge.months > 0 && ` ${result.statutoryRetirementAge.months} 个月`}
+              </span>
             </p>
           </div>
 
-          {/* Policy Table */}
-          <div className="glass-card p-6">
-            <h3 className="text-white font-medium mb-4">2025年渐进式退休政策参考</h3>
-            <div className="space-y-2 text-sm">
-              <div className="p-3 bg-[#080B14] rounded">
-                <p className="text-[#94A3B8]">男性：1965年前出生60岁 → 1975年后出生65岁</p>
-              </div>
-              <div className="p-3 bg-[#080B14] rounded">
-                <p className="text-[#94A3B8]">女性（工人）：1970年前出生50岁 → 1980年后出生60岁</p>
-              </div>
-              <div className="p-3 bg-[#080B14] rounded">
-                <p className="text-[#94A3B8]">女性（干部）：1975年前出生55岁 → 1985年后出生65岁</p>
-              </div>
-            </div>
-            <p className="text-xs text-[#475569] mt-4 text-center">
-              注：具体政策以当地最新规定为准，此处为简化估算
+          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
+            <p className="text-xs text-[#94A3B8] mb-1">延迟退休月份数</p>
+            <p className="text-3xl font-extrabold text-[#F59E0B] font-mono tracking-tight my-1">
+              +{result.delayedMonths} <span className="text-sm font-sans text-[#94A3B8]">个月</span>
+            </p>
+            <p className="text-xs text-[#64748B]">
+              原法定退休时间：{result.originalRetirementDate}（{result.originalRetirementAge}周岁）
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
+            <p className="text-xs text-[#94A3B8] mb-1">基本养老金最低缴费年限</p>
+            <p className="text-3xl font-extrabold text-[#10B981] font-mono tracking-tight my-1">
+              {result.minContributionYears} <span className="text-sm font-sans text-[#94A3B8]">年</span>
+            </p>
+            <p className="text-xs text-[#64748B]">
+              {result.minContributionYears > 15 ? '2030年起逐步过渡至20年' : '2030年前保持15年基准'}
             </p>
           </div>
         </div>
-      </main>
 
-      <Footer />
-    </div>
+        {/* Flexible Retirement Card */}
+        <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-6">
+          <h3 className="font-semibold text-white text-sm sm:text-base mb-4">
+            自愿弹性退休区间（提前与延迟）
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/60 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-[#10B981]">弹性提前退休（最早）</span>
+                <span className="text-xs text-[#64748B]">需达最低缴费年限</span>
+              </div>
+              <p className="text-xl font-bold font-mono text-white">
+                {result.earliestFlexibleRetirementDate}
+              </p>
+              <p className="text-xs text-[#94A3B8] mt-1">
+                提前时间最长不超过 3 年，且不得早于原法定退休年龄（{result.originalRetirementAge} 周岁）。
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/60 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-[#38BDF8]">弹性延迟退休（最晚）</span>
+                <span className="text-xs text-[#64748B]">需用人单位协商同意</span>
+              </div>
+              <p className="text-xl font-bold font-mono text-white">
+                {result.latestFlexibleRetirementDate}
+              </p>
+              <p className="text-xs text-[#94A3B8] mt-1">
+                达到法定退休年龄后，经与用人单位协商一致，延迟时间最长不超过 3 年。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ToolLayout>
   )
 }

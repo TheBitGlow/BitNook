@@ -1,24 +1,31 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
-import { Spade, RotateCcw, Play, Check } from 'lucide-react'
+import AdSlot from '@/components/ads/AdSlot'
+import { RotateCcw, Undo2, Sparkles, CheckCircle2, Play } from 'lucide-react'
 
 type Suit = '♠' | '♥' | '♦' | '♣'
 type Rank = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K'
-type Card = { suit: Suit; rank: Rank; id: string } | null
+
+interface Card {
+  suit: Suit
+  rank: Rank
+  id: string
+}
+
 type Column = Card[]
 
 const SUITS: Suit[] = ['♠', '♥', '♦', '♣']
 const RANKS: Rank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 
-let cardIdCounter = 0
-const createDeck = (): Card[] => {
+let cardIdSeq = 0
+function createShuffledDeck(): Card[] {
   const deck: Card[] = []
-  for (const suit of SUITS) {
-    for (const rank of RANKS) {
-      deck.push({ suit, rank, id: `card-${cardIdCounter++}` })
+  for (const s of SUITS) {
+    for (const r of RANKS) {
+      deck.push({ suit: s, rank: r, id: `c-${++cardIdSeq}` })
     }
   }
   for (let i = deck.length - 1; i > 0; i--) {
@@ -28,519 +35,562 @@ const createDeck = (): Card[] => {
   return deck
 }
 
-const getColor = (card: Card): 'red' | 'black' | null => {
-  if (!card) return null
-  return card.suit === '♥' || card.suit === '♦' ? 'red' : 'black'
+function dealColumns(deck: Card[]): Column[] {
+  const cols: Column[] = Array.from({ length: 8 }, () => [])
+  for (let i = 0; i < 52; i++) {
+    cols[i % 8].push(deck[i])
+  }
+  return cols
 }
 
-const getValue = (card: Card): number => {
-  if (!card) return 0
-  return RANKS.indexOf(card.rank) + 1
+function getCardColor(c: Card): 'red' | 'black' {
+  return c.suit === '♥' || c.suit === '♦' ? 'red' : 'black'
 }
 
-export default function FreecellPage() {
-  const [columns, setColumns] = useState<Column[]>([])
-  const [foundations, setFoundations] = useState<{ [key: string]: Card[] }>({
-    '♠': [], '♥': [], '♦': [], '♣': []
+function getCardValue(c: Card): number {
+  return RANKS.indexOf(c.rank) + 1
+}
+
+// Verify if a slice from idx to end of column forms a descending alternating sequence
+function isValidSequence(col: Column, startIdx: number): boolean {
+  for (let i = startIdx; i < col.length - 1; i++) {
+    const cur = col[i]
+    const next = col[i + 1]
+    if (getCardColor(cur) === getCardColor(next)) return false
+    if (getCardValue(cur) !== getCardValue(next) + 1) return false
+  }
+  return true
+}
+
+interface GameState {
+  columns: Column[]
+  foundations: Record<Suit, Card[]>
+  freeCells: (Card | null)[]
+  moves: number
+}
+
+export default function FreeCellPage() {
+  const [columns, setColumns] = useState<Column[]>(() => dealColumns(createShuffledDeck()))
+  const [foundations, setFoundations] = useState<Record<Suit, Card[]>>({
+    '♠': [],
+    '♥': [],
+    '♦': [],
+    '♣': [],
   })
   const [freeCells, setFreeCells] = useState<(Card | null)[]>([null, null, null, null])
-  const [selected, setSelected] = useState<{ type: 'col' | 'free'; col?: number; index?: number; freeIndex?: number } | null>(null)
   const [moves, setMoves] = useState(0)
-  const [won, setWon] = useState(false)
 
-  const initGame = useCallback(() => {
-    const deck = createDeck()
-    const cols: Column[] = [[], [], [], [], [], [], [], []]
-    for (let i = 0; i < 52; i++) {
-      cols[i % 8].push(deck[i])
-    }
-    setColumns(cols)
+  // Selection state
+  const [selected, setSelected] = useState<
+    | { type: 'col'; colIdx: number; startIdx: number }
+    | { type: 'free'; freeIdx: number }
+    | null
+  >(null)
+
+  // History stack for Undo
+  const [history, setHistory] = useState<GameState[]>([])
+
+  // Win condition: all 52 cards are gathered in foundations
+  const isWon = useMemo(() => {
+    return Object.values(foundations).every((f) => f.length === 13)
+  }, [foundations])
+
+  // Save snapshot to history
+  const pushHistory = useCallback(() => {
+    setHistory((prev) => [
+      ...prev.slice(-25), // keep last 25 moves
+      {
+        columns: columns.map((c) => [...c]),
+        foundations: {
+          '♠': [...foundations['♠']],
+          '♥': [...foundations['♥']],
+          '♦': [...foundations['♦']],
+          '♣': [...foundations['♣']],
+        },
+        freeCells: [...freeCells],
+        moves,
+      },
+    ])
+  }, [columns, foundations, freeCells, moves])
+
+  // Start new game
+  const startNewGame = useCallback(() => {
+    setColumns(dealColumns(createShuffledDeck()))
     setFoundations({ '♠': [], '♥': [], '♦': [], '♣': [] })
     setFreeCells([null, null, null, null])
-    setSelected(null)
     setMoves(0)
-    setWon(false)
+    setSelected(null)
+    setHistory([])
   }, [])
 
-  useEffect(() => {
-    initGame()
-  }, [initGame])
+  // Undo move
+  const handleUndo = useCallback(() => {
+    if (history.length === 0) return
+    const prev = history[history.length - 1]
+    setColumns(prev.columns)
+    setFoundations(prev.foundations)
+    setFreeCells(prev.freeCells)
+    setMoves(prev.moves)
+    setSelected(null)
+    setHistory((h) => h.slice(0, -1))
+  }, [history])
 
-  useEffect(() => {
-    const totalInFoundations = Object.values(foundations).flat().length
-    if (totalInFoundations === 52 && !won) {
-      setWon(true)
-    }
-  }, [foundations, won])
+  // Move single card to FreeCell
+  const handleFreeCellClick = (idx: number) => {
+    if (isWon) return
 
-  const canMoveToFoundation = (card: Card, suit: Suit): boolean => {
-    if (!card) return false
-    const foundation = foundations[suit]
-    if (card.suit !== suit) return false
-    if (foundation.length === 0) return card.rank === 'A'
-    const topCard = foundation[foundation.length - 1]
-    return topCard ? getValue(card) === getValue(topCard) + 1 : false
-  }
-
-  const canMoveToColumn = (card: Card, targetCol: Column): boolean => {
-    if (!card) return false
-    if (targetCol.length === 0) return true
-    const topCard = targetCol[targetCol.length - 1]
-    if (!topCard) return true
-    return getColor(card) !== getColor(topCard) && getValue(card) === getValue(topCard) - 1
-  }
-
-  const handleColumnClick = (colIndex: number, cardIndex: number) => {
-    if (won) return
-
-    if (selected) {
-      const { type, col: srcCol, index: srcIndex, freeIndex } = selected
-      const isTargetTopOrEmpty = columns[colIndex].length === 0 || cardIndex === columns[colIndex].length - 1
-
-      if (type === 'col' && srcCol !== undefined && srcIndex !== undefined) {
-        const card = columns[srcCol][srcIndex]
-        if (!card || srcIndex !== columns[srcCol].length - 1) {
-          setSelected(null)
-          return
-        }
-
-        if (canMoveToColumn(card, columns[colIndex]) && isTargetTopOrEmpty) {
-          const newCols = columns.map(c => [...c])
-          const [cardToMove] = newCols[srcCol].splice(srcIndex, 1)
-          newCols[colIndex].push(cardToMove)
-          setColumns(newCols)
-          setMoves(m => m + 1)
-          setSelected(null)
-          return
-        }
-      } else if (type === 'free' && freeIndex !== undefined) {
-        const card = freeCells[freeIndex]
-        if (!card) {
-          setSelected(null)
-          return
-        }
-
-        // Try to move to foundation
-        if (canMoveToFoundation(card, card.suit)) {
-          const newFreeCells = [...freeCells]
-          newFreeCells[freeIndex] = null
-          setFoundations(prev => ({
-            ...prev,
-            [card.suit]: [...prev[card.suit], card]
-          }))
-          setFreeCells(newFreeCells)
-          setMoves(m => m + 1)
-          setSelected(null)
-          return
-        }
-
-        if (canMoveToColumn(card, columns[colIndex]) && isTargetTopOrEmpty) {
-          const newFreeCells = [...freeCells]
-          newFreeCells[freeIndex] = null
-          const newCols = columns.map(c => [...c])
-          newCols[colIndex].push(card)
-          setFreeCells(newFreeCells)
-          setColumns(newCols)
-          setMoves(m => m + 1)
-          setSelected(null)
-          return
-        }
+    if (!selected) {
+      if (freeCells[idx]) {
+        setSelected({ type: 'free', freeIdx: idx })
       }
-
-      setSelected(null)
-    } else {
-      const col = columns[colIndex]
-      if (cardIndex === col.length - 1) {
-        setSelected({ type: 'col', col: colIndex, index: cardIndex })
-      }
-    }
-  }
-
-  const handleFoundationClick = (suit: Suit) => {
-    if (!selected || won) return
-
-    if (selected.type === 'col' && selected.col !== undefined && selected.index !== undefined) {
-      const card = columns[selected.col][selected.index]
-      if (!card || selected.index !== columns[selected.col].length - 1 || !canMoveToFoundation(card, suit)) {
-        setSelected(null)
-        return
-      }
-
-      const newCols = columns.map(c => [...c])
-      newCols[selected.col].splice(selected.index, 1)
-      setFoundations(prev => ({ ...prev, [suit]: [...prev[suit], card] }))
-      setColumns(newCols)
-      setMoves(m => m + 1)
-      setSelected(null)
       return
     }
 
-    if (selected.type === 'free' && selected.freeIndex !== undefined) {
-      const card = freeCells[selected.freeIndex]
-      if (!card || !canMoveToFoundation(card, suit)) {
+    if (selected.type === 'free') {
+      if (selected.freeIdx === idx) {
         setSelected(null)
-        return
+      } else if (!freeCells[idx]) {
+        // Move from one freecell to empty freecell
+        pushHistory()
+        const newFree = [...freeCells]
+        newFree[idx] = newFree[selected.freeIdx]
+        newFree[selected.freeIdx] = null
+        setFreeCells(newFree)
+        setMoves((m) => m + 1)
+        setSelected(null)
+      } else {
+        setSelected({ type: 'free', freeIdx: idx })
       }
-
-      const newFreeCells = [...freeCells]
-      newFreeCells[selected.freeIndex] = null
-      setFoundations(prev => ({ ...prev, [suit]: [...prev[suit], card] }))
-      setFreeCells(newFreeCells)
-      setMoves(m => m + 1)
-      setSelected(null)
+      return
     }
-  }
 
-  const handleFreeCellClick = (freeIndex: number) => {
-    if (won) return
+    // Moving from column to freecell (only single top card allowed)
+    if (selected.type === 'col') {
+      const col = columns[selected.colIdx]
+      if (selected.startIdx === col.length - 1 && freeCells[idx] === null) {
+        pushHistory()
+        const newCols = columns.map((c) => [...c])
+        const [movedCard] = newCols[selected.colIdx].splice(selected.startIdx, 1)
+        const newFree = [...freeCells]
+        newFree[idx] = movedCard
 
-    if (selected && selected.type === 'col' && selected.col !== undefined && selected.index !== undefined) {
-      const card = columns[selected.col][selected.index]
-      if (!card || selected.index !== columns[selected.col].length - 1) {
-        setSelected(null)
-        return
-      }
-
-      if (freeCells[freeIndex] === null) {
-        const newCols = columns.map(c => [...c])
-        newCols[selected.col].splice(selected.index, 1)
         setColumns(newCols)
-        const newFreeCells = [...freeCells]
-        newFreeCells[freeIndex] = card
-        setFreeCells(newFreeCells)
-        setMoves(m => m + 1)
+        setFreeCells(newFree)
+        setMoves((m) => m + 1)
         setSelected(null)
       } else {
         setSelected(null)
       }
-    } else if (freeCells[freeIndex]) {
-      setSelected({ type: 'free', freeIndex })
     }
   }
 
-  const autoComplete = () => {
-    // 一次性计算所有可以移动到foundation的牌
-    const newCols = columns.map(c => [...c])
-    const newFoundations = { ...foundations }
-    const newFreeCells = [...freeCells]
-    let moved = true
+  // Move to Foundation
+  const handleFoundationClick = (suit: Suit) => {
+    if (isWon || !selected) return
 
-    while (moved) {
-      moved = false
-      // Move Aces to foundations
-      for (let c = 0; c < 8; c++) {
-        const col = newCols[c]
-        const card = col[col.length - 1]
-        if (card && card.rank === 'A' && newFoundations[card.suit].length === 0) {
-          newCols[c] = col.slice(0, -1)
-          newFoundations[card.suit] = [...newFoundations[card.suit], card]
-          moved = true
+    const foundation = foundations[suit]
+    const nextVal = foundation.length === 0 ? 1 : getCardValue(foundation[foundation.length - 1]) + 1
+
+    if (selected.type === 'free') {
+      const card = freeCells[selected.freeIdx]
+      if (card && card.suit === suit && getCardValue(card) === nextVal) {
+        pushHistory()
+        const newFree = [...freeCells]
+        newFree[selected.freeIdx] = null
+        setFreeCells(newFree)
+        setFoundations((f) => ({ ...f, [suit]: [...f[suit], card] }))
+        setMoves((m) => m + 1)
+        setSelected(null)
+      } else {
+        setSelected(null)
+      }
+      return
+    }
+
+    if (selected.type === 'col') {
+      const col = columns[selected.colIdx]
+      if (selected.startIdx === col.length - 1) {
+        const card = col[selected.startIdx]
+        if (card.suit === suit && getCardValue(card) === nextVal) {
+          pushHistory()
+          const newCols = columns.map((c) => [...c])
+          const [movedCard] = newCols[selected.colIdx].splice(selected.startIdx, 1)
+          setColumns(newCols)
+          setFoundations((f) => ({ ...f, [suit]: [...f[suit], movedCard] }))
+          setMoves((m) => m + 1)
+          setSelected(null)
+        } else {
+          setSelected(null)
+        }
+      } else {
+        setSelected(null)
+      }
+    }
+  }
+
+  // Column click & multi-card sequence move logic
+  const handleColumnClick = (targetColIdx: number, cardIdx?: number) => {
+    if (isWon) return
+
+    if (!selected) {
+      const col = columns[targetColIdx]
+      if (col.length === 0) return
+
+      const startIdx = cardIdx !== undefined ? cardIdx : col.length - 1
+      if (isValidSequence(col, startIdx)) {
+        setSelected({ type: 'col', colIdx: targetColIdx, startIdx })
+      }
+      return
+    }
+
+    // Attempting move to target column
+    if (selected.type === 'free') {
+      const card = freeCells[selected.freeIdx]
+      if (!card) {
+        setSelected(null)
+        return
+      }
+
+      const targetCol = columns[targetColIdx]
+      let canPlace = false
+      if (targetCol.length === 0) {
+        canPlace = true
+      } else {
+        const topCard = targetCol[targetCol.length - 1]
+        canPlace = getCardColor(card) !== getCardColor(topCard) && getCardValue(card) === getCardValue(topCard) - 1
+      }
+
+      if (canPlace) {
+        pushHistory()
+        const newFree = [...freeCells]
+        newFree[selected.freeIdx] = null
+        const newCols = columns.map((c) => [...c])
+        newCols[targetColIdx].push(card)
+
+        setFreeCells(newFree)
+        setColumns(newCols)
+        setMoves((m) => m + 1)
+        setSelected(null)
+      } else {
+        setSelected(null)
+      }
+      return
+    }
+
+    if (selected.type === 'col') {
+      const srcColIdx = selected.colIdx
+      const startIdx = selected.startIdx
+
+      // Same column re-selection or cancellation
+      if (srcColIdx === targetColIdx) {
+        setSelected(null)
+        return
+      }
+
+      const srcCol = columns[srcColIdx]
+      const targetCol = columns[targetColIdx]
+      const sequenceToMove = srcCol.slice(startIdx)
+      const count = sequenceToMove.length
+      const baseCard = sequenceToMove[0]
+
+      // Windows Freecell sequence move capacity theorem:
+      // Max = (emptyFreeCells + 1) * 2^(emptyColumns)
+      // Note: If target column is empty, it does not count towards 2^(emptyColumns).
+      const emptyFreeCells = freeCells.filter((c) => c === null).length
+      let emptyColsCount = 0
+      for (let i = 0; i < 8; i++) {
+        if (i !== srcColIdx && i !== targetColIdx && columns[i].length === 0) {
+          emptyColsCount++
         }
       }
 
-      // Move other cards to foundations if possible
-      for (let c = 0; c < 8; c++) {
-        const col = newCols[c]
-        const card = col[col.length - 1]
+      const maxMovable = (emptyFreeCells + 1) * Math.pow(2, emptyColsCount)
+
+      let canPlace = false
+      if (targetCol.length === 0) {
+        canPlace = true
+      } else {
+        const topCard = targetCol[targetCol.length - 1]
+        canPlace =
+          getCardColor(baseCard) !== getCardColor(topCard) &&
+          getCardValue(baseCard) === getCardValue(topCard) - 1
+      }
+
+      if (canPlace && count <= maxMovable) {
+        pushHistory()
+        const newCols = columns.map((c) => [...c])
+        const movedCards = newCols[srcColIdx].splice(startIdx, count)
+        newCols[targetColIdx].push(...movedCards)
+
+        setColumns(newCols)
+        setMoves((m) => m + 1)
+        setSelected(null)
+      } else {
+        // Can't place or exceeds limit; switch selection if valid
+        const col = columns[targetColIdx]
+        if (col.length > 0) {
+          const clickIdx = cardIdx !== undefined ? cardIdx : col.length - 1
+          if (isValidSequence(col, clickIdx)) {
+            setSelected({ type: 'col', colIdx: targetColIdx, startIdx: clickIdx })
+            return
+          }
+        }
+        setSelected(null)
+      }
+    }
+  }
+
+  // Automatic foundation collector (Aces & safe cards)
+  const handleAutoCollect = () => {
+    let changed = false
+    let curCols = columns.map((c) => [...c])
+    let curFoundations = { ...foundations }
+    let curFree = [...freeCells]
+
+    let pass = true
+    while (pass) {
+      pass = false
+
+      // 1. Check freecells
+      for (let i = 0; i < 4; i++) {
+        const card = curFree[i]
         if (card) {
-          const foundation = newFoundations[card.suit]
-          const canMove = foundation.length === 0
-            ? card.rank === 'A'
-            : getValue(card) === getValue(foundation[foundation.length - 1]) + 1
-          if (canMove) {
-            newCols[c] = col.slice(0, -1)
-            newFoundations[card.suit] = [...newFoundations[card.suit], card]
-            moved = true
+          const targetFoundation = curFoundations[card.suit]
+          const nextVal = targetFoundation.length === 0 ? 1 : getCardValue(targetFoundation[targetFoundation.length - 1]) + 1
+          if (getCardValue(card) === nextVal) {
+            curFoundations = { ...curFoundations, [card.suit]: [...curFoundations[card.suit], card] }
+            curFree[i] = null
+            changed = true
+            pass = true
           }
         }
       }
 
-      // Move from free cells to foundations
-      for (let f = 0; f < 4; f++) {
-        const card = newFreeCells[f]
-        if (!card) continue
-        const foundation = newFoundations[card.suit]
-        const canMove = foundation.length === 0
-          ? card.rank === 'A'
-          : getValue(card) === getValue(foundation[foundation.length - 1]) + 1
-        if (canMove) {
-          newFreeCells[f] = null
-          newFoundations[card.suit] = [...newFoundations[card.suit], card]
-          moved = true
-        }
-      }
-    }
-
-    setColumns(newCols)
-    setFoundations(newFoundations)
-    setFreeCells(newFreeCells)
-  }
-
-  const getHint = () => {
-    // 找最佳提示
-    // 1. 优先移动可以放到foundation的牌
-    for (let c = 0; c < 8; c++) {
-      const col = columns[c]
-      const card = col[col.length - 1]
-      if (card && canMoveToFoundation(card, card.suit)) {
-        return { from: { type: 'col' as const, col: c, index: col.length - 1 }, message: `将${card.rank}${card.suit}移动到回收区` }
-      }
-    }
-
-    // 2. 从freecell找
-    for (let f = 0; f < 4; f++) {
-      const card = freeCells[f]
-      if (card && canMoveToFoundation(card, card.suit)) {
-        return { from: { type: 'free' as const, freeIndex: f }, message: `将${card.rank}${card.suit}从空位移动到回收区` }
-      }
-    }
-
-    // 3. 找可以移动到空列的牌
-    for (let c = 0; c < 8; c++) {
-      if (columns[c].length === 0) {
-        // 找最大的一张牌放到空列
-        let maxCard: { card: typeof columns[0][0]; index: number; srcCol: number } | null = null
-        for (let cc = 0; cc < 8; cc++) {
-          if (cc === c) continue
-          const col = columns[cc]
+      // 2. Check top card of each column
+      for (let c = 0; c < 8; c++) {
+        const col = curCols[c]
+        if (col.length > 0) {
           const card = col[col.length - 1]
-          if (card && (!maxCard || getValue(card) > getValue(maxCard.card!))) {
-            maxCard = { card, index: col.length - 1, srcCol: cc }
+          const targetFoundation = curFoundations[card.suit]
+          const nextVal = targetFoundation.length === 0 ? 1 : getCardValue(targetFoundation[targetFoundation.length - 1]) + 1
+          if (getCardValue(card) === nextVal) {
+            curFoundations = { ...curFoundations, [card.suit]: [...curFoundations[card.suit], card] }
+            curCols[c].pop()
+            changed = true
+            pass = true
           }
         }
-        if (maxCard && maxCard.card) {
-          return { from: { type: 'col' as const, col: maxCard.srcCol, index: maxCard.index }, message: `将${maxCard.card.rank}${maxCard.card.suit}移动到第${c + 1}列(空列)` }
-        }
       }
     }
 
-    // 4. 提示列间移动
-    for (let c = 0; c < 8; c++) {
-      const col = columns[c]
-      const card = col[col.length - 1]
-      if (!card) continue
-      for (let tc = 0; tc < 8; tc++) {
-        if (tc === c) continue
-        if (canMoveToColumn(card, columns[tc])) {
-          return { from: { type: 'col' as const, col: c, index: col.length - 1 }, message: `将${card.rank}${card.suit}移动到第${tc + 1}列` }
-        }
-      }
+    if (changed) {
+      pushHistory()
+      setColumns(curCols)
+      setFoundations(curFoundations)
+      setFreeCells(curFree)
+      setMoves((m) => m + 1)
+      setSelected(null)
     }
-
-    return { from: null, message: '没有找到提示' }
-  }
-
-  const [hint, setHint] = useState<{ from: any; message: string } | null>(null)
-
-  const renderCard = (card: Card, onClick: () => void) => {
-    if (!card) return null
-    const isRed = getColor(card) === 'red'
-
-    return (
-      <div
-        onClick={onClick}
-        className={`w-14 h-20 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all hover:scale-105 ${
-          selected ? 'ring-2 ring-[#F59E0B]' : ''
-        }`}
-        style={{
-          backgroundColor: isRed ? '#FEE2E2' : '#F8FAFC',
-          color: isRed ? '#DC2626' : '#1E293B',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-          border: isRed ? '2px solid #FECACA' : '2px solid #CBD5E1'
-        }}
-      >
-        <span className="text-sm font-bold self-start ml-1">{card.rank}</span>
-        <span className="text-2xl">{card.suit}</span>
-      </div>
-    )
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="min-h-screen flex flex-col bg-[#050811] text-slate-100">
       <Header />
 
-      <main className="flex-1 py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-[#06B6D4]/20 flex items-center justify-center">
-                <Spade className="w-5 h-5 text-[#06B6D4]" />
-              </div>
-              <h1 className="text-2xl font-bold text-white">空当接龙</h1>
-            </div>
-            <p className="text-[#94A3B8]">纸牌接龙挑战</p>
-          </div>
-
-          {/* Controls */}
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex gap-4">
-              <span className="text-[#94A3B8]">步数: {moves}</span>
-              <span className="text-[#94A3B8]">
-                完成: {Object.values(foundations).flat().length}/52
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={initGame}
-                className="px-4 py-2 bg-[#06B6D4] text-white rounded-lg hover:bg-[#0891b2] flex items-center gap-2"
-              >
-                <Play className="w-4 h-4" />
-                开始
-              </button>
-              <button
-                onClick={() => { setHint(getHint()); setTimeout(() => setHint(null), 3000) }}
-                className="px-4 py-2 bg-[#111827] border border-[rgba(99,102,241,0.3)] text-[#94A3B8] rounded-lg hover:text-white"
-              >
-                提示
-              </button>
-              <button
-                onClick={autoComplete}
-                className="px-4 py-2 bg-[#111927] border border-[rgba(99,102,241,0.3)] text-[#94A3B8] rounded-lg hover:text-white"
-              >
-                自动完成
-              </button>
-            </div>
-          </div>
-
-          {/* Hint Display */}
-          {hint && (
-            <div className="mb-4 p-3 bg-[#F59E0B]/20 border border-[#F59E0B]/40 rounded-lg">
-              <p className="text-[#F59E0B] text-sm font-medium">{hint.message}</p>
-            </div>
-          )}
-
-          {/* Foundations */}
-          <div className="flex gap-2 mb-4">
-            {SUITS.map(suit => (
-              <div
-                key={suit}
-                onClick={() => handleFoundationClick(suit)}
-                className="w-14 h-20 rounded-lg flex items-center justify-center cursor-pointer"
-                style={{
-                  backgroundColor: '#1A2235',
-                  border: '2px dashed rgba(99,102,241,0.2)'
-                }}
-              >
-                {foundations[suit].length > 0 && (() => {
-                  const topCard = foundations[suit][foundations[suit].length - 1]
-                  const isRedSuit = suit === '♥' || suit === '♦'
-                  return topCard ? (
-                    <div className="text-center">
-                      <span className="text-2xl font-bold" style={{ color: isRedSuit ? '#DC2626' : '#1E293B' }}>
-                        {topCard.rank}
-                      </span>
-                      <span className="text-2xl" style={{ color: isRedSuit ? '#DC2626' : '#1E293B' }}>
-                        {suit}
-                      </span>
-                    </div>
-                  ) : null
-                })()}
-                {foundations[suit].length === 0 && (
-                  <span style={{ color: suit === '♥' || suit === '♦' ? '#DC262680' : '#47556980' }}>
-                    {suit}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Free Cells */}
-          <div className="flex gap-2 mb-4">
-            <span className="text-[#94A3B8] text-sm self-center mr-2">空位:</span>
-            {freeCells.map((card, i) => (
-              <div
-                key={i}
-                onClick={() => handleFreeCellClick(i)}
-                className="cursor-pointer"
-              >
-                {card ? (
-                  <div
-                    className="w-14 h-20 rounded-lg flex flex-col items-center justify-center"
-                    style={{
-                      backgroundColor: getColor(card) === 'red' ? '#FEE2E2' : '#F8FAFC',
-                      color: getColor(card) === 'red' ? '#DC2626' : '#1E293B',
-                      border: getColor(card) === 'red' ? '2px solid #FECACA' : '2px solid #CBD5E1'
-                    }}
-                  >
-                    <span className="text-sm font-bold self-start ml-1">{card.rank}</span>
-                    <span className="text-2xl">{card.suit}</span>
-                  </div>
-                ) : (
-                  <div
-                    className="w-14 h-20 rounded-lg flex items-center justify-center"
-                    style={{
-                      backgroundColor: '#111827',
-                      border: '1px dashed rgba(99,102,241,0.2)'
-                    }}
-                  >
-                    <span className="text-[#475569]">+</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Game Board */}
-          <div className="glass-card p-4">
-            {columns.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-[#475569] mb-4">点击开始按钮开始游戏</p>
-                <button
-                  onClick={initGame}
-                  className="px-6 py-3 bg-[#06B6D4] text-white rounded-xl hover:bg-[#0891b2]"
-                >
-                  开始游戏
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2 overflow-x-auto pb-4">
-                {columns.map((col, colIndex) => (
-                  <div
-                    key={colIndex}
-                    className="flex flex-col gap-1 min-w-[60px]"
-                  >
-                    {col.map((card, cardIndex) => (
-                      <div
-                        key={card?.id || `${colIndex}-${cardIndex}`}
-                        onClick={() => handleColumnClick(colIndex, cardIndex)}
-                      >
-                        {renderCard(card, () => {})}
-                      </div>
-                    ))}
-                    {col.length === 0 && (
-                      <div
-                        className="w-14 h-20 rounded-lg flex items-center justify-center"
-                        style={{
-                          backgroundColor: '#111827',
-                          border: '1px dashed rgba(99,102,241,0.2)'
-                        }}
-                        onClick={() => handleColumnClick(colIndex, 0)}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Win */}
-          {won && (
-            <div className="mt-6 glass-card p-6 text-center">
-              <Check className="w-12 h-12 text-[#10B981] mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-[#10B981] mb-2">恭喜通关！</h2>
-              <p className="text-[#94A3B8]">共用 {moves} 步完成</p>
-            </div>
-          )}
-
-          {/* Tips */}
-          <div className="mt-6 p-4 bg-[#111927]/50 rounded-xl border border-[rgba(99,102,241,0.1)]">
-            <p className="text-sm text-[#94A3B8]">
-              <span className="text-[#F59E0B]">规则：</span>
-              点击选中纸牌，再次点击目标位置移动。拖动A到顶部区域，按花色从A到K排列。下方空位可临时存放纸牌。
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8">
+        {/* Title & Controls */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <span className="p-1.5 rounded-xl bg-indigo-500/20 text-indigo-400">♠️</span>
+              <span>经典空当接龙 (FreeCell)</span>
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              经典 Windows 规则 · 真多张顺牌批量移动算法 · 一键智能回收 · 悔棋支持
             </p>
           </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-mono text-slate-300 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+              步数: <strong className="text-white">{moves}</strong>
+            </span>
+            <button
+              onClick={handleAutoCollect}
+              disabled={isWon}
+              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+              title="自动将符合要求的卡牌收集至回收区"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>自动回收</span>
+            </button>
+            <button
+              onClick={handleUndo}
+              disabled={history.length === 0 || isWon}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+              <span>悔棋</span>
+            </button>
+            <button
+              onClick={startNewGame}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-md shadow-emerald-600/20"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>新牌局</span>
+            </button>
+          </div>
         </div>
+
+        {/* FreeCell Table Container */}
+        <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-2xl flex flex-col items-center select-none">
+          {/* Top Row: 4 Free Cells + 4 Foundations */}
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* 4 Free Cells (Top-Left) */}
+            <div>
+              <span className="text-xs font-semibold text-slate-400 block mb-2">左上：空当暂存区 (4格)</span>
+              <div className="grid grid-cols-4 gap-2.5">
+                {freeCells.map((card, idx) => {
+                  const isSelected = selected?.type === 'free' && selected.freeIdx === idx
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleFreeCellClick(idx)}
+                      className={`h-24 sm:h-28 rounded-xl border-2 flex items-center justify-center transition-all ${
+                        isSelected
+                          ? 'border-indigo-400 bg-indigo-950/60 shadow-lg ring-2 ring-indigo-400'
+                          : card
+                          ? 'bg-slate-950 border-slate-700 shadow-md'
+                          : 'border-dashed border-slate-800 bg-slate-950/40 hover:border-slate-700'
+                      }`}
+                    >
+                      {card ? (
+                        <div
+                          className={`font-bold font-mono text-center ${
+                            getCardColor(card) === 'red' ? 'text-rose-500' : 'text-slate-100'
+                          }`}
+                        >
+                          <div className="text-base">{card.rank}</div>
+                          <div className="text-xl">{card.suit}</div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-700 font-mono">空</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* 4 Foundations (Top-Right) */}
+            <div>
+              <span className="text-xs font-semibold text-slate-400 block mb-2">右上：目标回收区 (A至K)</span>
+              <div className="grid grid-cols-4 gap-2.5">
+                {SUITS.map((suit) => {
+                  const list = foundations[suit]
+                  const topCard = list.length > 0 ? list[list.length - 1] : null
+                  const isRed = suit === '♥' || suit === '♦'
+
+                  return (
+                    <button
+                      key={suit}
+                      onClick={() => handleFoundationClick(suit)}
+                      className="h-24 sm:h-28 rounded-xl border-2 border-dashed border-slate-800 bg-slate-950/40 hover:border-slate-700 flex items-center justify-center shadow-inner transition"
+                    >
+                      {topCard ? (
+                        <div
+                          className={`font-bold font-mono text-center ${isRed ? 'text-rose-500' : 'text-slate-100'}`}
+                        >
+                          <div className="text-base">{topCard.rank}</div>
+                          <div className="text-xl">{topCard.suit}</div>
+                        </div>
+                      ) : (
+                        <span
+                          className={`text-2xl font-bold opacity-30 ${isRed ? 'text-rose-500' : 'text-slate-400'}`}
+                        >
+                          {suit}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Columns: 8 Cascades */}
+          <div className="w-full">
+            <span className="text-xs font-semibold text-slate-400 block mb-2">主牌区：8列递减顺牌</span>
+            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 min-h-[420px]">
+              {columns.map((col, colIdx) => {
+                return (
+                  <div
+                    key={colIdx}
+                    onClick={() => handleColumnClick(colIdx)}
+                    className="relative min-h-[380px] rounded-xl border border-dashed border-slate-800/80 bg-slate-950/20 p-1 flex flex-col items-center cursor-pointer"
+                  >
+                    {col.length === 0 ? (
+                      <span className="text-[11px] text-slate-700 mt-4">空列</span>
+                    ) : (
+                      col.map((card, cardIdx) => {
+                        const isPartOfSelection =
+                          selected?.type === 'col' &&
+                          selected.colIdx === colIdx &&
+                          cardIdx >= selected.startIdx
+                        const isRed = getCardColor(card) === 'red'
+
+                        return (
+                          <div
+                            key={card.id}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleColumnClick(colIdx, cardIdx)
+                            }}
+                            className={`w-full h-12 rounded-lg border px-2 py-1 flex items-center justify-between transition-all select-none ${
+                              isPartOfSelection
+                                ? 'bg-indigo-950 border-indigo-400 ring-2 ring-indigo-400 z-20 brightness-110 shadow-lg'
+                                : 'bg-slate-950 border-slate-700/80 shadow-sm hover:border-slate-500'
+                            }`}
+                            style={{
+                              marginTop: cardIdx === 0 ? 0 : '-18px',
+                              zIndex: isPartOfSelection ? 20 + cardIdx : cardIdx,
+                            }}
+                          >
+                            <span className={`font-mono font-bold text-xs ${isRed ? 'text-rose-500' : 'text-slate-100'}`}>
+                              {card.rank}
+                            </span>
+                            <span className={`text-sm ${isRed ? 'text-rose-500' : 'text-slate-100'}`}>
+                              {card.suit}
+                            </span>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Victory Overlay */}
+          {isWon && (
+            <div className="mt-6 p-6 rounded-2xl bg-emerald-950/70 border-2 border-emerald-500 text-center space-y-2 animate-fadeIn">
+              <Sparkles className="w-10 h-10 text-amber-400 mx-auto animate-bounce" />
+              <h3 className="text-xl font-bold text-white">恭喜胜利通关！</h3>
+              <p className="text-xs text-slate-300">
+                完美归位全部 52 张扑克牌，共用步数：<span className="font-mono font-bold text-white">{moves}</span>
+              </p>
+              <button
+                onClick={startNewGame}
+                className="mt-3 px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/30 transition"
+              >
+                再开一局
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Non-intrusive AdSlot */}
+        <AdSlot placement="tool-bottom" className="mt-8" />
       </main>
 
       <Footer />

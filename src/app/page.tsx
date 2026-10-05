@@ -1,190 +1,368 @@
 'use client'
 
+import React, { useState } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
+import AdSlot from '@/components/ads/AdSlot'
+import DynamicIcon from '@/components/common/DynamicIcon'
+import { ToolCard } from '@/components/tool/ToolCard'
+import { GlobalSearchModal } from '@/components/search/GlobalSearchModal'
 import { useI18n } from '@/lib/i18n'
+import { getAllCategories } from '@/config/categories'
+import { getFeaturedTools, getActiveTools } from '@/config/tools'
+import { getAllGames } from '@/config/games'
+import { useRecentTools, useFavorites } from '@/lib/storage'
 import {
-  ArrowRight,
-  ArrowRightLeft,
-  BarChart3,
-  Clock,
-  Code2,
-  FileText,
-  Gamepad2,
-  Landmark,
-  Lock,
-  QrCode,
-  MousePointerClick,
-  ShieldCheck,
+  Search,
   Sparkles,
-  TrendingUp,
+  ArrowRight,
+  ShieldCheck,
+  Zap,
+  CheckCircle2,
+  Gamepad2,
+  Clock,
+  Star,
 } from 'lucide-react'
 
-const featuredTools = [
-  { name: '房贷计算', enName: 'Mortgage Calculator', icon: Landmark, color: '#10B981', href: '/tools/finance/mortgage', desc: '等额本息/本金对比分析', enDesc: 'Compare equal payment and equal principal plans' },
-  { name: '贷款比价', enName: 'Loan Comparison', icon: BarChart3, color: '#10B981', href: '/tools/finance/loan-compare', desc: '多方案综合对比', enDesc: 'Compare multiple loan options side by side' },
-  { name: '复利计算', enName: 'Compound Interest', icon: TrendingUp, color: '#10B981', href: '/tools/finance/compound', desc: '投资复利增长模拟', enDesc: 'Simulate long-term investment growth' },
-  { name: '时间戳', enName: 'Timestamp Converter', icon: Clock, color: '#F59E0B', href: '/tools/convert/timestamp', desc: 'Unix时间戳转换', enDesc: 'Convert Unix timestamps and date-time values' },
-  { name: '二维码', enName: 'QR Code Generator', icon: QrCode, color: '#06B6D4', href: '/tools/convert/qrcode', desc: '生成和解析二维码', enDesc: 'Generate QR codes for text, links, and WiFi' },
-  { name: '密码生成', enName: 'Password Generator', icon: Lock, color: '#8B5CF6', href: '/tools/daily/password', desc: '安全密码批量生成', enDesc: 'Generate secure passwords locally' },
-]
-
-const categories = [
-  { name: '财务计算', enName: 'Finance Calculators', icon: TrendingUp, color: '#10B981', href: '/tools/finance', desc: '房贷、贷款、复利、工资等常用计算器', enDesc: 'Mortgage, loans, compound interest, salary, and common finance calculators' },
-  { name: '开发者与转换', enName: 'Developer & Conversion', icon: Code2, color: '#F59E0B', href: '/tools/convert', desc: '时间戳、Hash、二维码、单位转换', enDesc: 'Timestamp, hash, QR code, unit conversion, and more' },
-  { name: '日常效率', enName: 'Daily Productivity', icon: ShieldCheck, color: '#3B82F6', href: '/tools/daily', desc: '密码、计时、字数统计、日期计算', enDesc: 'Passwords, timers, word counts, and date calculations' },
-  { name: '经典游戏', enName: 'Classic Games', icon: Gamepad2, color: '#EC4899', href: '/games', desc: '俄罗斯方块、扫雷、象棋、五子棋等小游戏', enDesc: 'Tetris, Minesweeper, Chinese Chess, Gomoku, and more' },
-]
-
 export default function HomePage() {
-  const { locale, t, list } = useI18n()
+  const [searchModalOpen, setSearchModalOpen] = useState(false)
+  const { locale, t } = useI18n()
   const isZh = locale === 'zh'
 
+  const categories = getAllCategories()
+  const featuredTools = getFeaturedTools().slice(0, 8)
+  const allTools = getActiveTools()
+  const games = getAllGames().slice(0, 4)
+
+  const { recentTools } = useRecentTools()
+  const { favorites } = useFavorites()
+
+  // Match recent tools
+  const recentToolItems = recentTools
+    .map((slug) => allTools.find((t) => t.slug === slug))
+    .filter((t): t is typeof allTools[0] => Boolean(t))
+    .slice(0, 4)
+
+  // Popular quick keyword tags
+  const popularKeywords = [
+    { label: isZh ? '房贷计算' : 'Mortgage', href: '/tools/finance/mortgage' },
+    { label: isZh ? 'BMI健康' : 'BMI', href: '/tools/health/bmi' },
+    { label: isZh ? '时间戳' : 'Timestamp', href: '/tools/convert/timestamp' },
+    { label: isZh ? '二维码生成' : 'QR Code', href: '/tools/convert/qrcode' },
+    { label: isZh ? '单位转换' : 'Unit Convert', href: '/tools/convert/unit' },
+    { label: isZh ? '强密码生成' : 'Password', href: '/tools/daily/password' },
+    { label: isZh ? '大模型显存' : 'LLM VRAM', href: '/tools/ai/gpu-calculator' },
+    { label: isZh ? '俄罗斯方块' : 'Tetris', href: '/games/tetris' },
+  ]
+
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-[#090D16] text-slate-100">
       <Header />
 
       <main className="flex-1">
-        <section className="px-4 py-16 md:py-20 border-b border-[rgba(99,102,241,0.15)] bg-[#0A0F1C]">
-          <div className="max-w-7xl mx-auto grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-[#111827] border border-[rgba(99,102,241,0.25)] mb-6">
-                <Sparkles className="w-4 h-4 text-[#06B6D4]" />
-                <span className="text-sm text-[#94A3B8]">{t('home.eyebrow')}</span>
-              </div>
-
-              <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 tracking-normal">
-                {t('home.title')}
-              </h1>
-
-              <p className="text-lg md:text-xl text-[#94A3B8] max-w-3xl mb-8 leading-relaxed">
-                {t('home.subtitle')}
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-3 mb-10">
-                <Link href="/tools" className="btn-gradient px-6 py-3 inline-flex items-center justify-center gap-2">
-                  {t('home.primary')}
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link href="/games" className="px-6 py-3 rounded-xl border border-[rgba(99,102,241,0.3)] text-[#94A3B8] hover:text-white hover:border-[rgba(99,102,241,0.6)] transition-all inline-flex items-center justify-center gap-2">
-                  {t('home.secondary')}
-                  <Gamepad2 className="w-4 h-4" />
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {list('home.metrics').map((metric) => (
-                  <div key={metric} className="rounded-lg border border-[rgba(99,102,241,0.15)] bg-[#080B14] px-4 py-3 text-sm text-[#CBD5E1]">
-                    {metric}
-                  </div>
-                ))}
-              </div>
+        {/* ==================== HERO SECTION ==================== */}
+        <section className="relative px-4 pt-16 pb-14 sm:pt-24 sm:pb-20 border-b border-[#1E293B] bg-gradient-to-b from-[#0F1523] via-[#090D16] to-[#090D16] overflow-hidden">
+          <div className="max-w-4xl mx-auto text-center relative z-10">
+            {/* Small Eyebrow Badge */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/25 bg-blue-500/10 text-blue-400 text-xs font-semibold mb-6">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>All Tools, One Nook · 一站搞定，方寸万象</span>
             </div>
 
-            <div className="rounded-xl border border-[rgba(99,102,241,0.2)] bg-[#080B14] p-5">
-              <div className="flex items-center gap-3 mb-5">
-                <MousePointerClick className="w-5 h-5 text-[#06B6D4]" />
-                <h2 className="text-lg font-semibold text-white">{t('home.pillarsTitle')}</h2>
-              </div>
-              <div className="space-y-3">
-                {list('home.pillars').map((item, index) => (
-                  <div key={item} className="flex gap-3 rounded-lg bg-[#111827] p-4">
-                    <span className="h-7 w-7 rounded-full bg-[#6366F1]/20 text-[#A5B4FC] flex items-center justify-center text-sm font-semibold">
-                      {index + 1}
-                    </span>
-                    <p className="text-sm leading-relaxed text-[#CBD5E1]">{item}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+            {/* Main Title */}
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-6">
+              {isZh ? (
+                <>
+                  一站搞定，<br className="hidden sm:inline" />
+                  你的常用效率工具都在这里。
+                </>
+              ) : (
+                <>
+                  All Tools, One Nook.<br className="hidden sm:inline" />
+                  Your Everyday Utilities in One Spot.
+                </>
+              )}
+            </h1>
 
-        <section className="py-14 px-4">
-          <div className="max-w-7xl mx-auto">
-            <h2 className="text-2xl font-bold text-white mb-8">{t('home.featuredTitle')}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {featuredTools.map((tool) => (
-                <Link key={tool.href} href={tool.href} className="glass-card p-5 flex items-start gap-4 group">
-                  <div className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform" style={{ backgroundColor: `${tool.color}20` }}>
-                    <tool.icon className="w-5 h-5" style={{ color: tool.color }} />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white mb-1">{isZh ? tool.name : tool.enName}</h3>
-                    <p className="text-sm text-[#94A3B8]">{isZh ? tool.desc : tool.enDesc}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="py-14 px-4 bg-[#0D1117]">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-10">
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-5">{t('home.contentTitle')}</h2>
-                <div className="space-y-3">
-                  {list('home.contentItems').map((item) => (
-                    <div key={item} className="rounded-lg border border-[rgba(99,102,241,0.15)] bg-[#080B14] p-4 text-[#CBD5E1]">
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-5">{t('home.roadmapTitle')}</h2>
-                <div className="space-y-3">
-                  {list('home.roadmap').map((item) => (
-                    <div key={item} className="rounded-lg border border-[rgba(99,102,241,0.15)] bg-[#080B14] p-4 text-[#CBD5E1]">
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="py-14 px-4">
-          <div className="max-w-7xl mx-auto">
-            <h2 className="text-2xl font-bold text-white mb-8">{isZh ? '站点模块' : 'Site Modules'}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {categories.map((cat) => (
-                <Link key={cat.href} href={cat.href} className="glass-card p-5 group">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform" style={{ backgroundColor: `${cat.color}20` }}>
-                    <cat.icon className="w-6 h-6" style={{ color: cat.color }} />
-                  </div>
-                  <h3 className="font-semibold text-white mb-2">{isZh ? cat.name : cat.enName}</h3>
-                  <p className="text-sm text-[#94A3B8] leading-relaxed">{isZh ? cat.desc : cat.enDesc}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="py-16 px-4 bg-[#0A0F1C] border-t border-[rgba(99,102,241,0.15)]">
-          <div className="max-w-4xl mx-auto text-center">
-            <FileText className="w-10 h-10 text-[#06B6D4] mx-auto mb-4" />
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-              {isZh ? '找工具不绕路，直接完成手头任务' : 'Find the right tool and finish the task faster'}
-            </h2>
-            <p className="text-[#94A3B8] mb-8 leading-relaxed">
+            {/* Subtitle */}
+            <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto mb-8 leading-relaxed">
               {isZh
-                ? '从工具中心搜索关键词，或按财务、转换、日常、健康、网络和 AI 分类进入对应工具。'
-                : 'Search by keyword in Tools Hub, or browse by finance, conversion, daily, health, network, and AI categories.'}
+                ? '无需下载安装，全站 45 款工具与 8 款经典游戏即开即用。纯净本地优先计算，拒绝虚假模拟，保护数据隐私。'
+                : 'Zero installation needed. 45 verified productivity utilities and classic games. Local-first computation with authentic algorithms.'}
             </p>
-            <Link href="/tools" className="inline-flex items-center gap-2 text-[#06B6D4] hover:text-white transition-colors">
-              {t('common.viewTools')}
-              <ArrowRightLeft className="w-4 h-4 rotate-90" />
+
+            {/* Direct Interactive Search Bar in Hero */}
+            <div className="max-w-xl mx-auto mb-6">
+              <button
+                type="button"
+                onClick={() => setSearchModalOpen(true)}
+                className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl border border-[#1E293B] bg-[#0F1523] hover:border-slate-600 hover:bg-[#141C2E] shadow-xl text-left transition-all duration-200 group"
+              >
+                <div className="flex items-center gap-3">
+                  <Search className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm text-slate-400 group-hover:text-slate-300">
+                    {isZh ? '搜索你要解决的问题（例如：房贷、BMI、时间戳、JSON）...' : 'Search tools, calculators, games (e.g. Mortgage, BMI, Hash)...'}
+                  </span>
+                </div>
+                <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono bg-[#141C2E] text-slate-400 border border-[#1E293B]">
+                  ⌘K
+                </kbd>
+              </button>
+            </div>
+
+            {/* Hot keyword recommendation tags */}
+            <div className="flex flex-wrap items-center justify-center gap-2 max-w-2xl mx-auto">
+              <span className="text-xs text-slate-500 font-medium mr-1">
+                {isZh ? '热门工具：' : 'Popular:'}
+              </span>
+              {popularKeywords.map((kw) => (
+                <Link
+                  key={kw.href}
+                  href={kw.href}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[#0F1523] border border-[#1E293B] text-slate-300 hover:text-white hover:border-slate-700 hover:bg-[#141C2E] transition-colors"
+                >
+                  {kw.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== RECENTLY USED SECTION (IF ANY) ==================== */}
+        {recentToolItems.length > 0 && (
+          <section className="px-4 py-8 max-w-7xl mx-auto border-b border-[#1E293B]">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-blue-400" />
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+                  {isZh ? '最近访问工具' : 'Recently Used'}
+                </h2>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {recentToolItems.map((tool) => (
+                <ToolCard key={`recent-${tool.slug}`} tool={tool} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ==================== POPULAR TOOLS SECTION ==================== */}
+        <section className="py-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
+                  {isZh ? '高频实用' : 'Essential Picks'}
+                </span>
+              </div>
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                {isZh ? '热门推荐工具' : 'Popular Utilities'}
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                {isZh
+                  ? '精选各领域最高频、真实可用、支持本地快速处理的日常效率小工具'
+                  : 'Handpicked high-frequency tools with authentic computation and local privacy'}
+              </p>
+            </div>
+
+            <Link
+              href="/tools"
+              className="text-xs font-semibold text-blue-400 hover:text-blue-300 inline-flex items-center gap-1.5 transition-colors self-start sm:self-auto"
+            >
+              <span>{isZh ? `浏览全部 ${allTools.length} 款工具` : `Explore all ${allTools.length} tools`}</span>
+              <ArrowRight className="w-4 h-4" />
             </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {featuredTools.map((tool) => (
+              <ToolCard key={tool.slug} tool={tool} />
+            ))}
+          </div>
+        </section>
+
+        {/* Mid-page Ad Slot */}
+        <div className="max-w-7xl mx-auto px-4 my-4">
+          <AdSlot slotId="home-mid-banner" format="horizontal" />
+        </div>
+
+        {/* ==================== CATEGORIES SECTION ==================== */}
+        <section className="py-14 px-4 sm:px-6 lg:px-8 border-y border-[#1E293B] bg-[#0A0E1A]">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-white tracking-tight mb-1">
+                {isZh ? '六大分类，按需即查' : 'Browse by Category'}
+              </h2>
+              <p className="text-xs text-slate-400">
+                {isZh
+                  ? '所有工具统一归类管理，涵盖日常办公、财务投资、健康监测、数据转换、网络自查与 AI 辅助'
+                  : 'Well-structured utilities organized by domain with strict quality assurance'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {categories.map((cat) => {
+                const count = allTools.filter((t) => t.category === cat.slug).length
+                return (
+                  <Link
+                    key={cat.slug}
+                    href={`/tools/${cat.slug}`}
+                    className="group rounded-2xl border border-[#1E293B] bg-[#0F1523] p-5 hover:border-slate-700 hover:bg-[#141C2E] transition-all flex items-start gap-4"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-blue-400 group-hover:text-white shrink-0 group-hover:scale-105 transition-transform">
+                      <DynamicIcon name={cat.iconName} className="w-6 h-6" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <h3 className="font-bold text-white group-hover:text-blue-400 transition-colors text-sm">
+                          {isZh ? cat.name : cat.nameEn}
+                        </h3>
+                        <span className="text-[11px] font-mono text-slate-500 font-semibold px-2 py-0.5 rounded-full bg-[#141C2E] border border-[#1E293B]">
+                          {count}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
+                        {isZh ? cat.description : cat.descriptionEn}
+                      </p>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== GAMES SPOTLIGHT ==================== */}
+        <section className="py-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Gamepad2 className="w-4 h-4 text-pink-400" />
+                <span className="text-xs font-bold text-pink-400 uppercase tracking-wider">
+                  {isZh ? '工作间歇 · 极简解压' : 'Take a Break'}
+                </span>
+              </div>
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                {isZh ? '经典休闲小游戏' : 'Classic Mini-Games'}
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                {isZh
+                  ? '俄罗斯方块、经典扫雷、贪吃蛇与象棋对弈，纯前端运行，无开局强插广告'
+                  : 'Pure client-side canvas mini-games designed for quick cognitive breaks'}
+              </p>
+            </div>
+
+            <Link
+              href="/games"
+              className="text-xs font-semibold text-pink-400 hover:text-pink-300 inline-flex items-center gap-1.5 transition-colors"
+            >
+              <span>{isZh ? '进入游戏大厅' : 'View all games'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {games.map((game) => (
+              <Link
+                key={game.slug}
+                href={game.href}
+                className="group rounded-2xl border border-[#1E293B] bg-[#0F1523] p-5 hover:border-slate-700 hover:bg-[#141C2E] transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-12 h-12 rounded-xl bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-pink-400 group-hover:text-white group-hover:scale-105 transition-transform mb-4">
+                    <DynamicIcon name={game.iconName} className="w-6 h-6" />
+                  </div>
+                  <h3 className="font-bold text-white group-hover:text-pink-400 transition-colors text-sm mb-1.5">
+                    {isZh ? game.name : game.nameEn}
+                  </h3>
+                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                    {isZh ? game.description : game.descriptionEn}
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-[#1E293B] flex items-center justify-between text-xs">
+                  <span className="text-[11px] font-mono uppercase text-slate-500">
+                    {game.category}
+                  </span>
+                  <span className="text-slate-400 group-hover:text-pink-400 font-medium inline-flex items-center gap-1 text-[11px]">
+                    <span>{isZh ? '开始游戏' : 'Play'}</span>
+                    <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* ==================== WHY BITNOOK (3 PILLARS) ==================== */}
+        <section className="py-16 px-4 sm:px-6 lg:px-8 border-t border-[#1E293B] bg-[#0F1523]">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center max-w-xl mx-auto mb-12">
+              <h2 className="text-2xl font-bold text-white tracking-tight mb-2">
+                {isZh ? '为什么选择 BitNook？' : 'Why BitNook?'}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400">
+                {isZh ? '从工具设计之初，就坚持拒绝繁琐、伪造与隐私泄露' : 'Simple, transparent, and privacy-respecting by design'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Feature 1 */}
+              <div className="rounded-2xl border border-[#1E293B] bg-[#141C2E]/60 p-6 flex flex-col">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mb-4 shrink-0">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-white mb-2">
+                  {isZh ? '即开即用 · 零安装负担' : 'Instant & Frictionless'}
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {isZh
+                    ? '无需下载任何客户端，不要求繁琐注册。打开浏览器即可直接操作，直奔主题。'
+                    : 'No software installation or signup walls required. Open, compute, and finish your task immediately.'}
+                </p>
+              </div>
+
+              {/* Feature 2 */}
+              <div className="rounded-2xl border border-[#1E293B] bg-[#141C2E]/60 p-6 flex flex-col">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-white mb-2">
+                  {isZh ? '本地纯净 · 隐私数据零上传' : 'Local-First Privacy'}
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {isZh
+                    ? '哈希计算、二维码生成、格式转换等核心功能均在浏览器本地内存运行，绝不窥探或回传您的敏感数据。'
+                    : 'Hashes, QR codes, and unit conversions run entirely in client-side memory without transmitting your data.'}
+                </p>
+              </div>
+
+              {/* Feature 3 */}
+              <div className="rounded-2xl border border-[#1E293B] bg-[#141C2E]/60 p-6 flex flex-col">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-4 shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-white mb-2">
+                  {isZh ? '真实算法 · 权威数据来源' : 'Authentic Algorithms'}
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {isZh
+                    ? '房贷基于中国央行最新 LPR 基准，BMI 遵从卫健委卫生行业标准，网络检测基于真实 POP 探针，拒绝任何伪造数据。'
+                    : 'Calculations adhere strictly to authoritative standards like official benchmark rates and health standards.'}
+                </p>
+              </div>
+            </div>
           </div>
         </section>
       </main>
 
       <Footer />
+
+      {/* Global Search Modal */}
+      <GlobalSearchModal isOpen={searchModalOpen} onClose={() => setSearchModalOpen(false)} />
     </div>
   )
 }
