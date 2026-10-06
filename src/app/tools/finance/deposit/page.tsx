@@ -4,10 +4,9 @@ import { useState, useMemo } from 'react'
 import ToolLayout from '@/components/tools/ToolLayout'
 import {
   DEPOSIT_RATE_DATASET,
-  DepositRateItem,
   calculateDeposit,
 } from '@/lib/finance/deposit'
-import { PiggyBank, Calendar, ShieldAlert, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Calendar, AlertTriangle } from 'lucide-react'
 
 export default function DepositPage() {
   const [principal, setPrincipal] = useState<number>(100000)
@@ -77,21 +76,21 @@ export default function DepositPage() {
     >
       <div className="space-y-6">
         {/* Input Card */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
+        <div className="card p-6 sm:p-8 space-y-6">
           {/* Metadata Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(99,102,241,0.1)] pb-4 mb-6 text-xs text-[#94A3B8]">
-            <span className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5 text-[#10B981]" />
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4 text-xs text-text-muted">
+            <span className="flex items-center gap-1.5 font-medium">
+              <Calendar className="h-3.5 w-3.5 text-accent-primary" />
               数据来源：{selectedItem.source}
             </span>
-            <span className="rounded-full bg-[#1E293B] px-3 py-1 font-mono text-[#CBD5E1]">
+            <span className="rounded-full bg-surface-elevated border border-border px-3 py-1 font-mono text-text-secondary">
               基准版本：{selectedItem.effectiveDate}（更新于 {selectedItem.updatedAt}）
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 存款本金（元）
               </label>
               <input
@@ -100,22 +99,22 @@ export default function DepositPage() {
                 step="1000"
                 value={principal}
                 onChange={(e) => setPrincipal(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-white focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-2xl font-bold font-mono text-text-primary focus:border-accent-primary focus:outline-none transition-colors"
               />
-              <p className="mt-1 text-[11px] text-[#64748B]">
+              <p className="mt-1 text-[11px] text-text-muted">
                 折合 {(principal / 10000).toFixed(2)} 万元
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 存款品种选择
               </label>
               <select
                 aria-label="选择存款品种"
                 value={selectedId}
                 onChange={(e) => setSelectedId(e.target.value)}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-white font-medium focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-text-primary font-medium focus:border-accent-primary focus:outline-none transition-colors text-sm"
               >
                 {DEPOSIT_RATE_DATASET.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -123,13 +122,13 @@ export default function DepositPage() {
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-[11px] text-[#64748B]">{selectedItem.note}</p>
+              <p className="mt-1 text-[11px] text-text-muted">{selectedItem.note}</p>
             </div>
           </div>
 
           {/* Min Amount warning if not eligible */}
           {!result.isEligible && (
-            <div className="mb-6 flex items-center gap-2 rounded-xl border border-[#EF4444]/30 bg-[#EF4444]/10 p-3.5 text-xs text-[#EF4444]">
+            <div className="flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 p-3.5 text-xs text-danger">
               <AlertTriangle className="h-4 w-4 flex-shrink-0" />
               <span>
                 注意：当前所选品种【{selectedItem.name}】起存门槛为 ¥{selectedItem.minAmount.toLocaleString()} 元，您当前输入的本金低于起存要求。
@@ -138,14 +137,14 @@ export default function DepositPage() {
           )}
 
           {/* Custom Rate Toggle */}
-          <div className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/50 p-4">
+          <div className="rounded-xl border border-border bg-surface-elevated p-4">
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-medium text-[#CBD5E1]">
+              <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-medium text-text-secondary">
                 <input
                   type="checkbox"
                   checked={customRateEnabled}
                   onChange={(e) => setCustomRateEnabled(e.target.checked)}
-                  className="rounded border-[rgba(99,102,241,0.3)] bg-[#111827] text-[#6366F1] focus:ring-0"
+                  className="rounded border-border text-accent-primary focus:ring-0"
                 />
                 自定义年执行利率（手动输入银行给出的实际加点利率）
               </label>
@@ -158,9 +157,9 @@ export default function DepositPage() {
                     max="15"
                     value={customRate}
                     onChange={(e) => setCustomRate(Math.max(0, Number(e.target.value)))}
-                    className="w-24 rounded-lg border border-[#6366F1] bg-[#0B0F19] px-2.5 py-1 text-right text-sm font-mono font-bold text-white focus:outline-none"
+                    className="w-24 rounded-lg border border-accent-primary bg-canvas px-2.5 py-1 text-right text-sm font-mono font-bold text-text-primary focus:outline-none"
                   />
-                  <span className="text-xs text-[#94A3B8]">%</span>
+                  <span className="text-xs text-text-muted">%</span>
                 </div>
               )}
             </div>
@@ -169,84 +168,84 @@ export default function DepositPage() {
 
         {/* Results Banner */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">预计到期利息</p>
-            <p className="text-2xl sm:text-3xl font-bold text-[#F59E0B] font-mono">
+          <div className="card p-5 text-center">
+            <p className="text-xs text-text-muted mb-1">预计到期利息</p>
+            <p className="text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400 font-mono">
               ¥{formatMoney(result.interest)}
             </p>
-            <p className="text-[11px] text-[#64748B] mt-1">
+            <p className="text-[11px] text-text-muted mt-1">
               按年利率 {result.rate}% 计算
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">到期本息合计</p>
-            <p className="text-2xl sm:text-3xl font-bold text-[#10B981] font-mono">
+          <div className="card p-5 text-center">
+            <p className="text-xs text-text-muted mb-1">到期本息合计</p>
+            <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
               ¥{formatMoney(result.totalAmount)}
             </p>
-            <p className="text-[11px] text-[#64748B] mt-1">本金 + 利息全额</p>
+            <p className="text-[11px] text-text-muted mt-1">本金 + 利息全额</p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">测算存期跨度</p>
-            <p className="text-2xl sm:text-3xl font-bold text-[#38BDF8] font-mono">
+          <div className="card p-5 text-center">
+            <p className="text-xs text-text-muted mb-1">测算存期跨度</p>
+            <p className="text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400 font-mono">
               {selectedItem.termMonths === 0 ? '活期 (按年化)' : `${selectedItem.termMonths} 个月`}
             </p>
-            <p className="text-[11px] text-[#64748B] mt-1">
+            <p className="text-[11px] text-text-muted mt-1">
               折合 {result.durationYears} 年
             </p>
           </div>
         </div>
 
         {/* Comparison Table */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-6">
-          <h3 className="font-semibold text-white text-sm sm:text-base mb-4">
+        <div className="card p-6">
+          <h3 className="font-semibold text-text-primary text-sm sm:text-base mb-4">
             挂牌基准利率数据集参考对照表 (Deposit Rate Dataset)
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs sm:text-sm text-left">
               <thead>
-                <tr className="border-b border-[rgba(99,102,241,0.15)] text-[#64748B]">
+                <tr className="border-b border-border text-text-muted">
                   <th className="py-2.5 px-3">存款类别</th>
                   <th className="py-2.5 px-3">期限</th>
                   <th className="py-2.5 px-3 text-right">参考年利率</th>
                   <th className="py-2.5 px-3 text-right">起存门槛</th>
                   <th className="py-2.5 px-3 text-right">本金测算收益</th>
-                  <th className="py-2.5 px-3">操作</th>
+                  <th className="py-2.5 px-3 text-center">操作</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[rgba(99,102,241,0.06)] font-mono">
+              <tbody className="divide-y divide-border/50 font-mono">
                 {DEPOSIT_RATE_DATASET.map((item) => {
                   const itemRes = calculateDeposit(principal, item)
                   const isCurrent = item.id === selectedId
                   return (
                     <tr
                       key={item.id}
-                      className={`hover:bg-[#1E293B]/30 transition-colors ${
-                        isCurrent ? 'bg-[#6366F1]/10 text-white' : ''
+                      className={`hover:bg-surface-elevated transition-colors ${
+                        isCurrent ? 'bg-accent-primary/10 text-text-primary' : ''
                       }`}
                     >
-                      <td className="py-3 px-3 font-medium text-white">{item.name}</td>
-                      <td className="py-3 px-3 text-[#94A3B8]">
+                      <td className="py-3 px-3 font-medium text-text-primary">{item.name}</td>
+                      <td className="py-3 px-3 text-text-muted">
                         {item.termMonths === 0 ? '随存随取' : `${item.termMonths} 个月`}
                       </td>
-                      <td className="py-3 px-3 text-right font-bold text-[#10B981]">
+                      <td className="py-3 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
                         {item.rate}%
                       </td>
-                      <td className="py-3 px-3 text-right text-[#94A3B8]">
+                      <td className="py-3 px-3 text-right text-text-muted">
                         ¥{item.minAmount.toLocaleString()}
                       </td>
-                      <td className="py-3 px-3 text-right text-[#F59E0B]">
+                      <td className="py-3 px-3 text-right text-amber-600 dark:text-amber-400 font-semibold">
                         {itemRes.isEligible ? `¥${formatMoney(itemRes.interest)}` : '门槛不足'}
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 text-center">
                         <button
                           type="button"
                           onClick={() => setSelectedId(item.id)}
                           className={`rounded px-2.5 py-1 text-xs font-sans transition-colors ${
                             isCurrent
-                              ? 'bg-[#6366F1] text-white'
-                              : 'bg-[#1E293B] text-[#94A3B8] hover:text-white'
+                              ? 'bg-accent-primary text-white font-medium'
+                              : 'bg-surface-elevated border border-border text-text-secondary hover:text-text-primary hover:border-accent-primary/40'
                           }`}
                         >
                           {isCurrent ? '当前选中' : '选择测算'}

@@ -6,60 +6,95 @@ const config: Config = {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
-        // Base canvas & surfaces
-        'bg-base': '#090D16',
-        'bg-surface': '#0F1523',
-        'bg-surface-subtle': '#141C2E',
-        'bg-surface-hover': '#1A243B',
-        'bg-surface-active': '#222F4C',
+        // Modern Semantic Design Tokens
+        canvas: 'var(--canvas)',
+        surface: {
+          DEFAULT: 'var(--surface)',
+          secondary: 'var(--surface-secondary)',
+          hover: 'var(--surface-hover)',
+          active: 'var(--surface-active)',
+        },
+        border: {
+          DEFAULT: 'var(--border)',
+          hover: 'var(--border-hover)',
+          focus: 'var(--border-focus)',
+        },
+        'text-primary': 'var(--text-primary)',
+        'text-secondary': 'var(--text-secondary)',
+        'text-muted': 'var(--text-muted)',
 
-        // Legacy background aliases for compatibility
-        'bg-primary': '#090D16',
-        'bg-secondary': '#0F1523',
-        'bg-card': '#0F1523',
-        'bg-card-hover': '#1A243B',
+        accent: {
+          DEFAULT: 'var(--accent)',
+          hover: 'var(--accent-hover)',
+          subtle: 'var(--accent-subtle)',
+        },
+        success: {
+          DEFAULT: 'var(--success)',
+          subtle: 'var(--success-subtle)',
+        },
+        warning: {
+          DEFAULT: 'var(--warning)',
+          subtle: 'var(--warning-subtle)',
+        },
+        danger: {
+          DEFAULT: 'var(--danger)',
+          subtle: 'var(--danger-subtle)',
+        },
 
-        // Brand & Accents
-        'brand-primary': '#3B82F6',
-        'brand-secondary': '#6366F1',
-        'brand-accent': '#06B6D4',
-        'brand-muted': 'rgba(59, 130, 246, 0.12)',
-
-        // Status & Functional
-        'gold': '#F59E0B',
-        'success': '#10B981',
-        'warning': '#F59E0B',
-        'danger': '#EF4444',
-        'info': '#3B82F6',
-
-        // Typography
-        'text-primary': '#F8FAFC',
-        'text-secondary': '#94A3B8',
-        'text-muted': '#64748B',
-
-        // Categories (refined, less neon)
-        'cat-daily': '#3B82F6',
-        'cat-finance': '#10B981',
-        'cat-health': '#EF4444',
-        'cat-convert': '#F59E0B',
-        'cat-network': '#8B5CF6',
-        'cat-ai': '#06B6D4',
-        'cat-game': '#EC4899',
+        // Backward compatibility mappings
+        'bg-base': 'var(--canvas)',
+        'bg-surface': 'var(--surface)',
+        'bg-surface-subtle': 'var(--surface-secondary)',
+        'bg-surface-hover': 'var(--surface-hover)',
+        'bg-surface-active': 'var(--surface-active)',
+        'bg-primary': 'var(--canvas)',
+        'bg-secondary': 'var(--surface)',
+        'bg-card': 'var(--surface)',
+        'bg-card-hover': 'var(--surface-hover)',
+        'brand-primary': 'var(--accent)',
+        'brand-muted': 'var(--accent-subtle)',
       },
-      borderColor: {
-        'base': '#1E293B',
-        'subtle': '#162032',
-        'hover': '#334155',
-        'focus': '#3B82F6',
-        'brand': 'rgba(59, 130, 246, 0.25)',
-        'brand-hover': 'rgba(59, 130, 246, 0.5)',
-        'brand-focus': '#3B82F6',
+      fontFamily: {
+        sans: [
+          'Geist Sans',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          '"Noto Sans SC"',
+          '"PingFang SC"',
+          '"Microsoft YaHei"',
+          'sans-serif',
+        ],
+        mono: [
+          'Geist Mono',
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Monaco',
+          'Consolas',
+          'monospace',
+        ],
+      },
+      boxShadow: {
+        subtle: 'var(--shadow-subtle)',
+        dropdown: 'var(--shadow-dropdown)',
+        modal: 'var(--shadow-modal)',
+      },
+      borderRadius: {
+        xs: '4px',
+        sm: '6px',
+        md: '8px',
+        lg: '10px',
+        xl: '12px',
       },
     },
   },
   plugins: [],
 }
+
 export default config

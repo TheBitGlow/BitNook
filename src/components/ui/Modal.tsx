@@ -58,7 +58,7 @@ export function Modal({
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity animate-in fade-in duration-150"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -66,20 +66,20 @@ export function Modal({
       {/* Modal Dialog Content */}
       <div
         ref={modalRef}
-        className={`relative w-full ${maxWidthStyles[maxWidth]} rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 shadow-2xl transition-all z-10`}
+        className={`relative w-full ${maxWidthStyles[maxWidth]} rounded-xl border border-border bg-surface p-5 sm:p-6 shadow-modal transition-all z-10 animate-in fade-in zoom-in-95 duration-150`}
       >
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            {title && <h2 className="text-lg font-bold text-white tracking-tight">{title}</h2>}
-            {description && <p className="text-xs text-slate-400 mt-1">{description}</p>}
+            {title && <h2 className="text-base font-semibold text-text-primary tracking-tight">{title}</h2>}
+            {description && <p className="text-xs text-text-secondary mt-0.5">{description}</p>}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-[#1A243B] transition-colors"
-            aria-label="Close modal"
+            className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-secondary transition-colors cursor-pointer"
+            aria-label="关闭弹窗"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -88,3 +88,5 @@ export function Modal({
     </div>
   )
 }
+
+export default Modal

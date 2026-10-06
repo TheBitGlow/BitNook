@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import ToolLayout from '@/components/tools/ToolLayout'
-import { Footprints, MapPin, Clock, Flame, ShieldAlert, Award } from 'lucide-react'
+import { Footprints, MapPin, Clock, Flame } from 'lucide-react'
 
 export default function StepsPage() {
   const [steps, setSteps] = useState<number>(8000)
@@ -66,7 +66,7 @@ export default function StepsPage() {
             <strong>1. 步长生物力学模型：</strong>单步距离（米）估算公式：步长 = 身高(cm) × 0.415 / 100。步行总距离（公里）：距离(km) = 步数 × 步长 / 1000。
           </p>
           <p>
-            <strong>2. 拒绝伪科学：</strong>本工具坚决废弃将步数目标机械绑定体重的无依据公式，依据《柳叶刀》和《中国居民膳食指南》身体活动建议，以科学步长和有效活动时间为指引。
+            <strong>2. 科学活动指引：</strong>依据《柳叶刀》和《中国居民膳食指南》身体活动建议，以科学步长和有效活动时间为指引，避免盲目超负荷步行。
           </p>
         </>
       }
@@ -76,10 +76,10 @@ export default function StepsPage() {
     >
       <div className="space-y-6">
         {/* Input Card */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
+        <div className="card p-6 sm:p-8 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 输入步数 (Steps)
               </label>
               <input
@@ -88,12 +88,12 @@ export default function StepsPage() {
                 step="500"
                 value={steps}
                 onChange={(e) => setSteps(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-center text-white focus:border-[#10B981] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-2xl font-bold font-mono text-center text-text-primary focus:border-accent-primary focus:outline-none transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 身高 (cm，用于校准步长)
               </label>
               <input
@@ -102,22 +102,22 @@ export default function StepsPage() {
                 max="230"
                 value={height}
                 onChange={(e) => setHeight(Number(e.target.value))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-center text-white focus:border-[#10B981] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-2xl font-bold font-mono text-center text-text-primary focus:border-accent-primary focus:outline-none transition-colors"
               />
-              <p className="mt-1 text-center text-[11px] text-[#64748B]">
+              <p className="mt-1 text-center text-[11px] text-text-muted">
                 单步估算长约 {(strideLengthMeters * 100).toFixed(1)} cm
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 平均步行节奏
               </label>
               <select
                 aria-label="步行节奏"
                 value={speedCategory}
                 onChange={(e) => setSpeedCategory(e.target.value as any)}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-white font-medium focus:border-[#10B981] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-text-primary font-medium focus:border-accent-primary focus:outline-none transition-colors text-sm"
               >
                 <option value="slow">散步 / 漫步 (~3.5 km/h)</option>
                 <option value="normal">日常中速 (~4.5 km/h)</option>
@@ -129,64 +129,64 @@ export default function StepsPage() {
 
         {/* Results Banner */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">等效步行距离</p>
-            <p className="text-2xl sm:text-3xl font-extrabold text-[#10B981] font-mono">
-              {totalKm.toFixed(2)} <span className="text-sm font-sans text-[#94A3B8]">公里</span>
+          <div className="card p-5 text-center">
+            <p className="text-xs text-text-muted mb-1">等效步行距离</p>
+            <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+              {totalKm.toFixed(2)} <span className="text-sm font-sans text-text-muted font-normal">公里</span>
             </p>
-            <p className="text-[11px] text-[#64748B] mt-1">约 {totalMiles.toFixed(2)} 英里</p>
+            <p className="text-[11px] text-text-muted mt-1">约 {totalMiles.toFixed(2)} 英里</p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">累计耗费时长</p>
-            <p className="text-2xl sm:text-3xl font-extrabold text-[#38BDF8] font-mono">
-              {estimatedMinutes} <span className="text-sm font-sans text-[#94A3B8]">分钟</span>
+          <div className="card p-5 text-center">
+            <p className="text-xs text-text-muted mb-1">累计耗费时长</p>
+            <p className="text-2xl sm:text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-mono">
+              {estimatedMinutes} <span className="text-sm font-sans text-text-muted font-normal">分钟</span>
             </p>
-            <p className="text-[11px] text-[#64748B] mt-1">折合约 {(estimatedMinutes / 60).toFixed(1)} 小时</p>
+            <p className="text-[11px] text-text-muted mt-1">折合约 {(estimatedMinutes / 60).toFixed(1)} 小时</p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">估算活动消耗</p>
-            <p className="text-2xl sm:text-3xl font-extrabold text-[#F59E0B] font-mono">
-              ~{estimatedKcal} <span className="text-sm font-sans text-[#94A3B8]">kcal</span>
+          <div className="card p-5 text-center">
+            <p className="text-xs text-text-muted mb-1">估算活动消耗</p>
+            <p className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 font-mono">
+              ~{estimatedKcal} <span className="text-sm font-sans text-text-muted font-normal">kcal</span>
             </p>
-            <p className="text-[11px] text-[#64748B] mt-1">按平地步行粗估</p>
+            <p className="text-[11px] text-text-muted mt-1">按平地步行粗估</p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">相当于标准400米跑道</p>
-            <p className="text-2xl sm:text-3xl font-extrabold text-[#A78BFA] font-mono">
-              {(totalKm / 0.4).toFixed(1)} <span className="text-sm font-sans text-[#94A3B8]">圈</span>
+          <div className="card p-5 text-center">
+            <p className="text-xs text-text-muted mb-1">相当于标准400米跑道</p>
+            <p className="text-2xl sm:text-3xl font-extrabold text-accent-primary font-mono">
+              {(totalKm / 0.4).toFixed(1)} <span className="text-sm font-sans text-text-muted font-normal">圈</span>
             </p>
-            <p className="text-[11px] text-[#64748B] mt-1">操场内圈环行</p>
+            <p className="text-[11px] text-text-muted mt-1">操场内圈环行</p>
           </div>
         </div>
 
         {/* Public Health Benchmarks */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-6">
-          <h3 className="font-semibold text-white text-sm sm:text-base mb-4">
+        <div className="card p-6 space-y-4">
+          <h3 className="font-semibold text-text-primary text-sm sm:text-base">
             成人日常步数与活动水平参考标准
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-            <div className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/60 p-4">
-              <span className="font-bold text-[#94A3B8]">低于 5,000 步</span>
-              <div className="text-[#EF4444] font-medium my-1">久坐生活模式</div>
-              <p className="text-[#64748B]">建议工作间隙增加起立走动与楼梯活动。</p>
+            <div className="rounded-xl border border-border bg-surface-elevated p-4">
+              <span className="font-bold text-text-muted">低于 5,000 步</span>
+              <div className="text-rose-600 dark:text-rose-400 font-medium my-1">久坐生活模式</div>
+              <p className="text-text-muted">建议工作间隙增加起立走动与楼梯活动。</p>
             </div>
-            <div className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/60 p-4">
-              <span className="font-bold text-[#94A3B8]">5,000 ~ 7,499 步</span>
-              <div className="text-[#F59E0B] font-medium my-1">低活动量日常</div>
-              <p className="text-[#64748B]">日常通勤基本量，建议增加中等强度快步走。</p>
+            <div className="rounded-xl border border-border bg-surface-elevated p-4">
+              <span className="font-bold text-text-muted">5,000 ~ 7,499 步</span>
+              <div className="text-amber-600 dark:text-amber-400 font-medium my-1">低活动量日常</div>
+              <p className="text-text-muted">日常通勤基本量，建议增加中等强度快步走。</p>
             </div>
-            <div className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/60 p-4">
-              <span className="font-bold text-[#94A3B8]">7,500 ~ 9,999 步</span>
-              <div className="text-[#10B981] font-medium my-1">理想健康推荐</div>
-              <p className="text-[#64748B]">大量研究证实心血管健康收益最显著的平衡点。</p>
+            <div className="rounded-xl border border-border bg-surface-elevated p-4">
+              <span className="font-bold text-text-muted">7,500 ~ 9,999 步</span>
+              <div className="text-emerald-600 dark:text-emerald-400 font-medium my-1">理想健康推荐</div>
+              <p className="text-text-muted">大量研究证实心血管健康收益最显著的平衡点。</p>
             </div>
-            <div className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/60 p-4">
-              <span className="font-bold text-[#94A3B8]">10,000 步以上</span>
-              <div className="text-[#38BDF8] font-medium my-1">高活跃活动量</div>
-              <p className="text-[#64748B]">运动习惯良好，长距离行走请穿避震鞋保护膝盖。</p>
+            <div className="rounded-xl border border-border bg-surface-elevated p-4">
+              <span className="font-bold text-text-muted">10,000 步以上</span>
+              <div className="text-blue-600 dark:text-blue-400 font-medium my-1">高活跃活动量</div>
+              <p className="text-text-muted">运动习惯良好，长距离行走请穿避震鞋保护膝盖。</p>
             </div>
           </div>
         </div>

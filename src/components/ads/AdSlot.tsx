@@ -1,42 +1,46 @@
 'use client'
 
 import React from 'react'
+import { ADS_CONFIG } from '@/config/ads'
+import { useConsentStatus } from '@/lib/useConsent'
 
 export type AdPlacement =
   | 'tool-bottom'
-  | 'tool-result'
-  | 'category-top'
+  | 'tool-docs-inline'
   | 'category-bottom'
-  | 'game-sidebar'
-  | 'home-hero'
-  | 'home-mid'
-  | 'home-bottom'
+  | 'footer-banner'
   | string
 
 interface AdSlotProps {
   placement?: AdPlacement
-  format?: 'banner' | 'rectangle' | 'leaderboard' | 'horizontal'
+  format?: 'banner' | 'rectangle' | 'leaderboard' | 'horizontal' | 'mobile'
   className?: string
   slotId?: string
 }
 
 export default function AdSlot({
-  placement,
-  format = 'banner',
+  placement = 'tool-bottom',
+  format = 'horizontal',
   className = '',
   slotId = 'default-ad-slot',
 }: AdSlotProps) {
-  // Ads are disabled by default unless explicitly enabled via environment variable
-  const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true'
+  const consentGranted = useConsentStatus()
 
-  if (!adsEnabled) {
+  // If ads are disabled in config, or no client configured, render nothing
+  if (!ADS_CONFIG.enabled || !ADS_CONFIG.clientId) {
+    return null
+  }
+
+  // Under strict privacy mode, require user consent before rendering ad tags
+  if (!consentGranted) {
     return null
   }
 
   const formatStyles: Record<string, string> = {
-    banner: 'min-h-[90px] max-w-[728px]',
     horizontal: 'min-h-[90px] max-w-[728px]',
+    banner: 'min-h-[90px] max-w-[728px]',
     rectangle: 'min-h-[250px] max-w-[300px]',
+    mobile: 'min-h-[50px] max-w-[320px]',
     leaderboard: 'min-h-[90px] max-w-[970px]',
   }
 
@@ -47,14 +51,21 @@ export default function AdSlot({
       aria-label="Sponsor Advertisement"
       data-placement={activePlacement}
       data-slot-id={slotId}
-      className={`mx-auto my-8 flex flex-col items-center justify-center overflow-hidden rounded-xl border border-[rgba(99,102,241,0.12)] bg-[#0B0F19]/60 p-4 text-center ${formatStyles[format] || ''} ${className}`}
+      className={`mx-auto my-8 flex flex-col items-center justify-center overflow-hidden rounded-xl border border-border bg-surface p-4 text-center shadow-subtle ${formatStyles[format] || ''} ${className}`}
     >
-      <div className="mb-2 text-[10px] uppercase tracking-wider text-[#475569]">
-        Advertisement / 赞助商广告
+      <div className="mb-2 text-[10px] uppercase tracking-wider text-text-muted font-medium">
+        Advertisement / 赞助商内容
       </div>
-      <div className="flex w-full flex-1 items-center justify-center rounded-lg border border-dashed border-[rgba(99,102,241,0.15)] bg-[#070A12]/40 py-6 text-xs text-[#64748B]">
-        <span>广告位 ({activePlacement})</span>
-      </div>
+      
+      {/* Real Google AdSense Tag Wrapper */}
+      <ins
+        className="adsbygoogle"
+        style={{ display: 'block', width: '100%' }}
+        data-ad-client={ADS_CONFIG.clientId}
+        data-ad-slot={slotId}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
     </aside>
   )
 }

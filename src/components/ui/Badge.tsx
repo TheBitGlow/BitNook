@@ -14,21 +14,21 @@ export function Badge({
   className = '',
   ...props
 }: BadgeProps) {
-  const baseStyles = 'inline-flex items-center font-medium rounded-full shrink-0 select-none'
+  const baseStyles = 'inline-flex items-center font-medium rounded shrink-0 select-none'
 
   const sizeStyles = {
-    sm: 'text-[11px] px-2 py-0.5 gap-1',
-    md: 'text-xs px-2.5 py-1 gap-1.5',
+    sm: 'text-[10px] sm:text-[11px] px-1.5 py-0.5 gap-1',
+    md: 'text-xs px-2 py-0.5 gap-1.5',
   }
 
   const variantStyles = {
-    default: 'bg-slate-800 text-slate-300 border border-slate-700/60',
-    success: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25',
-    warning: 'bg-amber-500/10 text-amber-400 border border-amber-500/25',
-    danger: 'bg-rose-500/10 text-rose-400 border border-rose-500/25',
-    info: 'bg-blue-500/10 text-blue-400 border border-blue-500/25',
-    purple: 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/25',
-    outline: 'bg-transparent text-slate-400 border border-slate-700',
+    default: 'bg-surface-secondary text-text-secondary border border-border',
+    success: 'bg-success-subtle text-success border border-success/20',
+    warning: 'bg-warning-subtle text-warning border border-warning/20',
+    danger: 'bg-danger-subtle text-danger border border-danger/20',
+    info: 'bg-accent-subtle text-accent border border-accent/20',
+    purple: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20',
+    outline: 'bg-transparent text-text-muted border border-border',
   }
 
   return (
@@ -41,3 +41,5 @@ export function Badge({
     </span>
   )
 }
+
+export default Badge

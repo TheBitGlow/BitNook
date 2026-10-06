@@ -17,16 +17,22 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={`rounded-2xl border border-dashed border-[#1E293B] bg-[#0F1523]/40 p-10 text-center flex flex-col items-center justify-center ${className}`}
+      className={`rounded-lg border border-dashed border-border bg-surface-secondary/40 p-6 sm:p-8 text-center flex flex-col items-center justify-center ${className}`}
     >
       {icon && (
-        <div className="w-12 h-12 rounded-2xl bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-slate-400 mb-3.5">
+        <div className="w-8 h-8 rounded-md bg-surface-secondary text-text-muted flex items-center justify-center mb-2.5">
           {icon}
         </div>
       )}
-      <h3 className="text-sm font-semibold text-white mb-1">{title}</h3>
-      {description && <p className="text-xs text-slate-400 max-w-sm mb-4 leading-relaxed">{description}</p>}
+      <h3 className="text-xs sm:text-sm font-medium text-text-primary mb-1">{title}</h3>
+      {description && (
+        <p className="text-xs text-text-muted max-w-xs mb-3 leading-relaxed">
+          {description}
+        </p>
+      )}
       {action && <div>{action}</div>}
     </div>
   )
 }
+
+export default EmptyState

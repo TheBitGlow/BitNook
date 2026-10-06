@@ -6,20 +6,22 @@ import {
   calculateSalary,
   SpecialAdditionalDeductions,
 } from '@/lib/finance/salary'
-import { Wallet, ShieldCheck, HelpCircle, ChevronDown, ChevronUp, FileSpreadsheet } from 'lucide-react'
+import { ChevronDown, ChevronUp, FileSpreadsheet, Copy, Check } from 'lucide-react'
+import { trackEvent } from '@/lib/analytics'
 
 export default function SalaryPage() {
   const [grossMonthly, setGrossMonthly] = useState<number>(15000)
   const [housingFundRate, setHousingFundRate] = useState<number>(7)
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false)
   const [showSchedule, setShowSchedule] = useState<boolean>(false)
+  const [copied, setCopied] = useState<boolean>(false)
 
   // Special additional deductions
   const [specialDeductions, setSpecialDeductions] = useState<SpecialAdditionalDeductions>({
     childrenEducation: 0,
     infantCare: 0,
     elderlySupport: 0,
-    housingLoanOrRent: 1500, // 常见租金或房贷
+    housingLoanOrRent: 1500, // 常见主要城市租金
     continuingEducation: 0,
   })
 
@@ -33,6 +35,15 @@ export default function SalaryPage() {
 
   const formatMoney = (n: number) =>
     n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+  const copySalarySummary = () => {
+    const text = `【税后到手工资估算结果（BitNook）】\n税前月薪: ¥${formatMoney(grossMonthly)}\n公积金费率: ${housingFundRate}%\n平均税后月到手: ¥${formatMoney(result.averageMonthlyNet)}\n全年实际到手收入: ¥${formatMoney(result.annualNetSalary)}\n全年应缴个人所得税: ¥${formatMoney(result.annualTax)}\n年度个人社保总额: ¥${formatMoney(result.annualInsurance)}\n年度个人公积金储存: ¥${formatMoney(result.annualHousingFund)}`
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      trackEvent('copy', { toolSlug: 'salary' })
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   const faq = [
     {
@@ -53,7 +64,7 @@ export default function SalaryPage() {
   ]
 
   const howToSteps = [
-    '输入税前税前月薪金额（如 15,000 元）。',
+    '输入税前月薪金额（如 15,000 元）。',
     '调整公积金缴费比例（法定区间一般为 5% ~ 12%，企业通常匹配 7% 或 12%）。',
     '展开【专项附加扣除配置】，填入子女教育、赡养老人或租金扣除额度。',
     '查看平均税后到手、年度税金支出、五险一金扣除，及 12 个月累计预扣税款明细表。',
@@ -62,120 +73,95 @@ export default function SalaryPage() {
   return (
     <ToolLayout
       toolSlug="salary"
-      principlesTitle="中国居民综合所得个税与累计预扣法原理"
+      principlesTitle="个税累计预扣法与五险一金代扣计算依据"
       principles={
         <>
           <p>
-            <strong>1. 累计预扣法计算公式：</strong>
+            <strong>1. 累计预扣法计税公式：</strong>
             <br />
-            本期应预扣预缴税额 = （累计收入 - 累计免税收入 - 累计减除费用 - 累计专项扣除 - 累计专项附加扣除）\(\times\) 预扣率 - 速算扣除数 - 累计已预扣预缴税额。
+            本期应预扣预缴税额 = (累计收入 - 累计免税收入 - 累计减除费用 - 累计专项扣除 - 累计专项附加扣除) × 预扣率 - 速算扣除数 - 累计已预扣预缴税额
           </p>
           <p>
-            <strong>2. 扣除项目说明：</strong>
-            基本减除费用按 5,000 元/月（全年 60,000 元）扣除；专项扣除包括个人承担的基本养老保险（8%）、基本医疗保险（2%）、失业保险（0.5%）及住房公积金（5%~12%）。
-          </p>
-          <p>
-            <strong>3. 透明估算假设：</strong>以现行个税法为基准，默认社保公积金基数上限参考主流一二线城市社平标准（约35,283元），下限约6,500元。
+            <strong>2. 五险一金法定个人代扣基准比例：</strong>
+            <br />
+            养老保险 8% + 医疗保险 2% (+大病等) + 失业保险 0.5% + 住房公积金 (5% ~ 12%)。
           </p>
         </>
       }
       howToSteps={howToSteps}
       faq={faq}
-      disclaimer="本工具为【中国居民工资税后估算器】，按国家现行统一综合所得七级累进预扣法测算。因各地区社保公积金缴费基数上下限及补充公积金政策存在地域差异，测算结果供个人财务规划参考，实际工资条以用人单位财务及主管税务机关正式核定为准。"
+      dataSources={[
+        {
+          name: '计算方法 (Calculation Method)',
+          description: '居民个人综合所得法定【累计预扣法】逐月递进扣缴模型',
+        },
+        {
+          name: '法规政策依据 (Policy Basis)',
+          description: '《中华人民共和国个人所得税法》及现行专项附加扣除暂行办法（含照护/教育2000元、老人3000元新规）',
+        },
+        {
+          name: '基准数据性质 (Reference Dataset)',
+          description: '社保公积金基数（参考下限 6,500 元、上限 35,283 元）为主流一线城市参考标准，非2026年全国统一定值',
+        },
+        {
+          name: '时效状态 (Updated At)',
+          description: '2026-03 校验现行税法及扣除标准有效',
+        },
+      ]}
+      disclaimer="【薪资估算声明】本工具为【中国居民工资税后估算器】。全国个税税率与专项附加扣除标准法定统一，但各地社保公积金缴费基数上限与下限依当地上年度社会平均工资核定。实际到手薪资以用人单位发放工资条与个人所得税 App 年度汇算清缴为准。"
     >
       <div className="space-y-6">
-        {/* Input Card */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(99,102,241,0.1)] pb-4 mb-6 text-xs text-[#94A3B8]">
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#10B981]" />
-              计算依据：{result.assumptions.taxLawVersion}
-            </span>
-            <span className="rounded-full bg-[#1E293B] px-3 py-1 font-mono text-[#CBD5E1]">
-              法定免征额基准：¥{result.assumptions.standardDeductionPerMonth}/月
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+        {/* Input Form Panel */}
+        <div className="card p-5 sm:p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 税前月薪（元）
               </label>
               <input
                 type="number"
-                min="0"
                 step="500"
+                min="1000"
                 value={grossMonthly}
                 onChange={(e) => setGrossMonthly(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-white focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-2.5 text-text-primary font-mono text-base focus:border-accent-primary focus:outline-none transition-colors"
               />
-              <p className="mt-1 text-[11px] text-[#64748B]">
-                年度税前总额：¥{formatMoney(result.grossAnnual)}
-              </p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
-                个人住房公积金比例
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                个人公积金缴纳比例（%）
               </label>
               <select
-                aria-label="住房公积金比例"
                 value={housingFundRate}
                 onChange={(e) => setHousingFundRate(Number(e.target.value))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-white font-medium focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-2.5 text-text-primary focus:border-accent-primary focus:outline-none transition-colors text-sm"
               >
-                {[5, 6, 7, 8, 10, 12].map((r) => (
-                  <option key={r} value={r}>
-                    {r}% 公积金（常规配置）
+                {[5, 6, 7, 8, 9, 10, 11, 12].map((rate) => (
+                  <option key={rate} value={rate}>
+                    {rate}% {rate === 7 ? '(常规推荐)' : rate === 12 ? '(最高上限)' : ''}
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-[11px] text-[#64748B]">
-                社保默认：养老 8% + 医疗 2% + 失业 0.5%（合计 10.5%）
-              </p>
             </div>
           </div>
 
-          {/* Special Additional Deductions Collapsible */}
-          <div className="rounded-xl border border-[rgba(99,102,241,0.15)] bg-[#070A12]/60 overflow-hidden">
+          {/* Advanced Special Additional Deductions Toggle */}
+          <div className="pt-2">
             <button
               type="button"
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex w-full items-center justify-between p-4 text-xs sm:text-sm font-semibold text-[#CBD5E1] hover:bg-[#111827] transition-colors"
+              className="text-xs text-accent-primary hover:underline flex items-center gap-1 font-semibold transition"
             >
-              <span>
-                专项附加扣除配置（当前每月已抵扣：¥
-                {result.monthlySchedule[0]?.specialAdditional.toLocaleString()} 元）
-              </span>
-              {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              <span>{showAdvanced ? '收起个税专项附加扣除配置' : '配置个税专项附加扣除（子女、租金、赡养等）'}</span>
+              {showAdvanced ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
 
             {showAdvanced && (
-              <div className="p-4 border-t border-[rgba(99,102,241,0.1)] grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="mt-3 p-4 rounded-xl border border-border bg-canvas grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[#94A3B8] mb-1">
-                    子女教育（2000元/月/孩）
-                  </label>
-                  <select
-                    value={specialDeductions.childrenEducation}
-                    onChange={(e) =>
-                      setSpecialDeductions({
-                        ...specialDeductions,
-                        childrenEducation: Number(e.target.value),
-                      })
-                    }
-                    className="w-full rounded-lg border border-[rgba(99,102,241,0.18)] bg-[#0B0F19] px-3 py-2 text-white"
-                  >
-                    <option value={0}>无</option>
-                    <option value={1000}>1个孩子（父母各扣50%：1000元/月）</option>
-                    <option value={2000}>1个孩子（全额扣除：2000元/月）</option>
-                    <option value={4000}>2个孩子（全额扣除：4000元/月）</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[#94A3B8] mb-1">
-                    3岁以下婴幼儿照护（2000元/月/孩）
+                  <label className="block text-[11px] text-text-muted mb-1">
+                    3岁以下婴幼儿照护
                   </label>
                   <select
                     value={specialDeductions.infantCare}
@@ -185,19 +171,36 @@ export default function SalaryPage() {
                         infantCare: Number(e.target.value),
                       })
                     }
-                    className="w-full rounded-lg border border-[rgba(99,102,241,0.18)] bg-[#0B0F19] px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-border bg-surface-elevated px-3 py-1.5 text-xs text-text-primary"
                   >
                     <option value={0}>无</option>
-                    <option value={1000}>1孩（父母各扣50%：1000元/月）</option>
-                    <option value={2000}>1孩（全额扣除：2000元/月）</option>
-                    <option value={4000}>2孩（全额扣除：4000元/月）</option>
+                    <option value={1000}>1个孩子（父母各扣1000元）</option>
+                    <option value={2000}>1个孩子（单人全扣2000元）</option>
+                    <option value={4000}>2个孩子（单人全扣4000元）</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[#94A3B8] mb-1">
-                    赡养老人（独生3000元/月）
-                  </label>
+                  <label className="block text-[11px] text-text-muted mb-1">子女教育扣除</label>
+                  <select
+                    value={specialDeductions.childrenEducation}
+                    onChange={(e) =>
+                      setSpecialDeductions({
+                        ...specialDeductions,
+                        childrenEducation: Number(e.target.value),
+                      })
+                    }
+                    className="w-full rounded-lg border border-border bg-surface-elevated px-3 py-1.5 text-xs text-text-primary"
+                  >
+                    <option value={0}>无</option>
+                    <option value={1000}>1个子女（父母各扣1000元）</option>
+                    <option value={2000}>1个子女（单人全扣2000元）</option>
+                    <option value={4000}>2个子女（单人全扣4000元）</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-text-muted mb-1">赡养老人扣除</label>
                   <select
                     value={specialDeductions.elderlySupport}
                     onChange={(e) =>
@@ -206,17 +209,16 @@ export default function SalaryPage() {
                         elderlySupport: Number(e.target.value),
                       })
                     }
-                    className="w-full rounded-lg border border-[rgba(99,102,241,0.18)] bg-[#0B0F19] px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-border bg-surface-elevated px-3 py-1.5 text-xs text-text-primary"
                   >
                     <option value={0}>无</option>
-                    <option value={1000}>非独生子女分摊（1000元/月）</option>
-                    <option value={1500}>非独生子女分摊（1500元/月）</option>
+                    <option value={1500}>非独生子女约定分摊（1500元/月）</option>
                     <option value={3000}>独生子女扣除（3000元/月）</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-[#94A3B8] mb-1">
+                <div className="sm:col-span-2 md:col-span-3">
+                  <label className="block text-[11px] text-text-muted mb-1">
                     住房贷款利息 / 住房租金
                   </label>
                   <select
@@ -227,7 +229,7 @@ export default function SalaryPage() {
                         housingLoanOrRent: Number(e.target.value),
                       })
                     }
-                    className="w-full rounded-lg border border-[rgba(99,102,241,0.18)] bg-[#0B0F19] px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-border bg-surface-elevated px-3 py-1.5 text-xs text-text-primary"
                   >
                     <option value={0}>无</option>
                     <option value={1000}>首套房贷利息（1000元/月）</option>
@@ -241,53 +243,65 @@ export default function SalaryPage() {
         </div>
 
         {/* Results Overview */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">平均税后月到手</p>
-            <p className="text-2xl sm:text-3xl font-extrabold text-[#10B981] font-mono">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="card p-4 text-center">
+            <p className="text-xs text-text-muted mb-1">平均税后月到手</p>
+            <p className="text-xl sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">
               ¥{formatMoney(result.averageMonthlyNet)}
             </p>
-            <p className="text-[11px] text-[#64748B] mt-1">全年税后 ¥{formatMoney(result.annualNetSalary)}</p>
+            <p className="text-[10px] text-text-muted mt-1">全年税后 ¥{formatMoney(result.annualNetSalary)}</p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">全年应缴个税</p>
-            <p className="text-2xl sm:text-3xl font-extrabold text-[#EF4444] font-mono">
+          <div className="card p-4 text-center">
+            <p className="text-xs text-text-muted mb-1">全年应缴个税</p>
+            <p className="text-xl sm:text-2xl font-bold text-rose-600 dark:text-rose-400 font-mono tabular-nums">
               ¥{formatMoney(result.annualTax)}
             </p>
-            <p className="text-[11px] text-[#64748B] mt-1">月均个税 ¥{formatMoney(result.averageMonthlyTax)}</p>
+            <p className="text-[10px] text-text-muted mt-1">月均个税 ¥{formatMoney(result.averageMonthlyTax)}</p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">年度五险个人缴纳</p>
-            <p className="text-2xl sm:text-3xl font-extrabold text-[#38BDF8] font-mono">
+          <div className="card p-4 text-center">
+            <p className="text-xs text-text-muted mb-1">年度五险个人代扣</p>
+            <p className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 font-mono tabular-nums">
               ¥{formatMoney(result.annualInsurance)}
             </p>
-            <p className="text-[11px] text-[#64748B] mt-1">养老 + 医疗 + 失业</p>
+            <p className="text-[10px] text-text-muted mt-1">养老 + 医疗 + 失业</p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">年度公积金个人缴纳</p>
-            <p className="text-2xl sm:text-3xl font-extrabold text-[#F59E0B] font-mono">
+          <div className="card p-4 text-center">
+            <p className="text-xs text-text-muted mb-1">年度公积金个人代扣</p>
+            <p className="text-xl sm:text-2xl font-bold text-amber-600 dark:text-amber-400 font-mono tabular-nums">
               ¥{formatMoney(result.annualHousingFund)}
             </p>
-            <p className="text-[11px] text-[#64748B] mt-1">计入个人公积金账户</p>
+            <p className="text-[10px] text-text-muted mt-1">计入个人公积金账户</p>
           </div>
         </div>
 
+        {/* Copy Result Bar */}
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={copySalarySummary}
+            className="btn-secondary inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold shadow-sm"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? '已复制估算报告' : '复制估算结果'}</span>
+          </button>
+        </div>
+
         {/* 12-Month Schedule Table */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="card p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5 text-[#6366F1]" />
-              <h3 className="font-semibold text-white text-sm sm:text-base">
+              <FileSpreadsheet className="h-4 w-4 text-accent-primary" />
+              <h3 className="font-semibold text-text-primary text-xs sm:text-sm">
                 1-12月累计预扣法逐月税后收入明细表
               </h3>
             </div>
             <button
               type="button"
               onClick={() => setShowSchedule(!showSchedule)}
-              className="text-xs text-[#6366F1] hover:text-[#818CF8]"
+              className="text-xs text-accent-primary hover:underline transition"
             >
               {showSchedule ? '收起明细表' : '展开12个月明细'}
             </button>
@@ -297,7 +311,7 @@ export default function SalaryPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead>
-                  <tr className="border-b border-[rgba(99,102,241,0.15)] text-[#64748B]">
+                  <tr className="border-b border-border text-text-muted">
                     <th className="py-2.5 px-3">月份</th>
                     <th className="py-2.5 px-3 text-right">税前收入</th>
                     <th className="py-2.5 px-3 text-right">五险一金</th>
@@ -307,24 +321,24 @@ export default function SalaryPage() {
                     <th className="py-2.5 px-3 text-right">税后到手收入</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[rgba(99,102,241,0.06)] font-mono">
+                <tbody className="divide-y divide-border/50 font-mono">
                   {result.monthlySchedule.map((row) => (
-                    <tr key={row.month} className="hover:bg-[#1E293B]/30 transition-colors">
-                      <td className="py-2.5 px-3 text-[#94A3B8]">第 {row.month} 月</td>
-                      <td className="py-2.5 px-3 text-right text-white">¥{formatMoney(row.gross)}</td>
-                      <td className="py-2.5 px-3 text-right text-[#38BDF8]">
+                    <tr key={row.month} className="hover:bg-surface-elevated transition-colors">
+                      <td className="py-2.5 px-3 text-text-muted">第 {row.month} 月</td>
+                      <td className="py-2.5 px-3 text-right text-text-primary tabular-nums">¥{formatMoney(row.gross)}</td>
+                      <td className="py-2.5 px-3 text-right text-blue-600 dark:text-blue-400 tabular-nums">
                         -¥{formatMoney(row.totalInsuranceFund)}
                       </td>
-                      <td className="py-2.5 px-3 text-right text-[#A78BFA]">
+                      <td className="py-2.5 px-3 text-right text-text-muted tabular-nums">
                         -¥{formatMoney(row.specialAdditional)}
                       </td>
-                      <td className="py-2.5 px-3 text-right text-[#94A3B8]">
+                      <td className="py-2.5 px-3 text-right text-text-muted tabular-nums">
                         ¥{formatMoney(row.cumulativeTaxableIncome)}
                       </td>
-                      <td className="py-2.5 px-3 text-right text-[#EF4444] font-bold">
+                      <td className="py-2.5 px-3 text-right text-rose-600 dark:text-rose-400 font-bold tabular-nums">
                         -¥{formatMoney(row.taxThisMonth)}
                       </td>
-                      <td className="py-2.5 px-3 text-right text-[#10B981] font-bold">
+                      <td className="py-2.5 px-3 text-right text-emerald-600 dark:text-emerald-400 font-bold tabular-nums">
                         ¥{formatMoney(row.netSalary)}
                       </td>
                     </tr>

@@ -1,123 +1,58 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
-import AdSlot from '@/components/ads/AdSlot'
+import React, { useState, useCallback, useEffect } from 'react'
+import GameLayout from '@/components/games/GameLayout'
+import { useRecentGames } from '@/lib/storage'
+import { trackEvent } from '@/lib/analytics'
 import { RotateCcw, Trophy, Zap, Sparkles, Shuffle } from 'lucide-react'
+import {
+  MATCH3_SIZE,
+  GEM_TYPES,
+  GemType,
+  Match3Grid,
+  createInitialMatch3Grid,
+  findMatches,
+  hasAnyValidMoves,
+} from '@/core/games/match3'
 
-const GRID_SIZE = 8
 const TOTAL_MOVES = 30
 
-interface GemColor {
-  name: string
+interface GemMeta {
   bg: string
   border: string
   glow: string
   icon: string
+  name: string
 }
 
-const GEMS: GemColor[] = [
-  { name: 'ruby', bg: 'bg-rose-500', border: 'border-rose-400', glow: 'shadow-rose-500/50', icon: '💎' },
-  { name: 'amber', bg: 'bg-amber-500', border: 'border-amber-400', glow: 'shadow-amber-500/50', icon: '⭐' },
-  { name: 'emerald', bg: 'bg-emerald-500', border: 'border-emerald-400', glow: 'shadow-emerald-500/50', icon: '🍀' },
-  { name: 'sapphire', bg: 'bg-blue-500', border: 'border-blue-400', glow: 'shadow-blue-500/50', icon: '💧' },
-  { name: 'amethyst', bg: 'bg-purple-500', border: 'border-purple-400', glow: 'shadow-purple-500/50', icon: '🔮' },
-  { name: 'topaz', bg: 'bg-pink-500', border: 'border-pink-400', glow: 'shadow-pink-500/50', icon: '🌸' },
-]
+const GEM_METAS: Record<GemType, GemMeta> = {
+  ruby: { bg: 'bg-rose-500', border: 'border-rose-400', glow: 'shadow-rose-500/40', icon: '💎', name: '红宝石' },
+  topaz: { bg: 'bg-amber-500', border: 'border-amber-400', glow: 'shadow-amber-500/40', icon: '⭐', name: '黄玉' },
+  emerald: { bg: 'bg-emerald-500', border: 'border-emerald-400', glow: 'shadow-emerald-500/40', icon: '🍀', name: '翡翠' },
+  sapphire: { bg: 'bg-sky-500', border: 'border-sky-400', glow: 'shadow-sky-500/40', icon: '💧', name: '蓝宝石' },
+  amethyst: { bg: 'bg-purple-500', border: 'border-purple-400', glow: 'shadow-purple-500/40', icon: '🔮', name: '紫水晶' },
+  diamond: { bg: 'bg-pink-500', border: 'border-pink-400', glow: 'shadow-pink-500/40', icon: '🌸', name: '粉钻' },
+}
 
-type Grid = (number | null)[][]
-
-function generateMatchFreeGrid(): Grid {
-  const g: Grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null))
-  for (let r = 0; r < GRID_SIZE; r++) {
-    for (let c = 0; c < GRID_SIZE; c++) {
-      let candidate: number
-      do {
-        candidate = Math.floor(Math.random() * GEMS.length)
-      } while (
-        (c >= 2 && g[r][c - 1] === candidate && g[r][c - 2] === candidate) ||
-        (r >= 2 && g[r - 1][c] === candidate && g[r - 2][c] === candidate)
-      )
-      g[r][c] = candidate
-    }
+function getNonDeadlockedGrid(): Match3Grid {
+  let g = createInitialMatch3Grid()
+  let attempts = 0
+  while (!hasAnyValidMoves(g) && attempts < 20) {
+    g = createInitialMatch3Grid()
+    attempts++
   }
   return g
 }
 
-function findMatches(g: Grid): { coords: Set<string>; maxRun: number } {
-  const coords = new Set<string>()
-  let maxRun = 0
-
-  // Horizontal runs
-  for (let r = 0; r < GRID_SIZE; r++) {
-    let matchLen = 1
-    for (let c = 1; c < GRID_SIZE; c++) {
-      if (g[r][c] !== null && g[r][c] === g[r][c - 1]) {
-        matchLen++
-      } else {
-        if (matchLen >= 3) {
-          maxRun = Math.max(maxRun, matchLen)
-          for (let k = c - matchLen; k < c; k++) coords.add(`${r},${k}`)
-        }
-        matchLen = 1
-      }
-    }
-    if (matchLen >= 3) {
-      maxRun = Math.max(maxRun, matchLen)
-      for (let k = GRID_SIZE - matchLen; k < GRID_SIZE; k++) coords.add(`${r},${k}`)
-    }
-  }
-
-  // Vertical runs
-  for (let c = 0; c < GRID_SIZE; c++) {
-    let matchLen = 1
-    for (let r = 1; r < GRID_SIZE; r++) {
-      if (g[r][c] !== null && g[r][c] === g[r - 1][c]) {
-        matchLen++
-      } else {
-        if (matchLen >= 3) {
-          maxRun = Math.max(maxRun, matchLen)
-          for (let k = r - matchLen; k < r; k++) coords.add(`${k},${c}`)
-        }
-        matchLen = 1
-      }
-    }
-    if (matchLen >= 3) {
-      maxRun = Math.max(maxRun, matchLen)
-      for (let k = GRID_SIZE - matchLen; k < GRID_SIZE; k++) coords.add(`${k},${c}`)
-    }
-  }
-
-  return { coords, maxRun }
-}
-
-function checkValidMovesExist(g: Grid): boolean {
-  for (let r = 0; r < GRID_SIZE; r++) {
-    for (let c = 0; c < GRID_SIZE; c++) {
-      // Try swap right
-      if (c < GRID_SIZE - 1) {
-        const copy = g.map((row) => [...row])
-        const temp = copy[r][c]
-        copy[r][c] = copy[r][c + 1]
-        copy[r][c + 1] = temp
-        if (findMatches(copy).coords.size > 0) return true
-      }
-      // Try swap down
-      if (r < GRID_SIZE - 1) {
-        const copy = g.map((row) => [...row])
-        const temp = copy[r][c]
-        copy[r][c] = copy[r + 1][c]
-        copy[r + 1][c] = temp
-        if (findMatches(copy).coords.size > 0) return true
-      }
-    }
-  }
-  return false
-}
-
 export default function Match3Page() {
-  const [grid, setGrid] = useState<Grid>(() => generateMatchFreeGrid())
+  const { recordRecentGame } = useRecentGames()
+
+  useEffect(() => {
+    recordRecentGame('match3')
+    trackEvent('game_start', { gameSlug: 'match3' })
+  }, [recordRecentGame])
+
+  const [grid, setGrid] = useState<Match3Grid>(() => getNonDeadlockedGrid())
   const [selected, setSelected] = useState<{ r: number; c: number } | null>(null)
   const [score, setScore] = useState(0)
   const [highScore, setHighScore] = useState<number>(() => {
@@ -138,13 +73,8 @@ export default function Match3Page() {
 
   const gameOver = movesLeft <= 0 && !isCascading
 
-  // Start new game
   const startNewGame = useCallback(() => {
-    let fresh = generateMatchFreeGrid()
-    while (!checkValidMovesExist(fresh)) {
-      fresh = generateMatchFreeGrid()
-    }
-    setGrid(fresh)
+    setGrid(getNonDeadlockedGrid())
     setSelected(null)
     setScore(0)
     setMovesLeft(TOTAL_MOVES)
@@ -157,19 +87,15 @@ export default function Match3Page() {
   useEffect(() => {
     if (!isCascading) return
 
-    const { coords, maxRun } = findMatches(grid)
-    if (coords.size === 0) {
+    const matches = findMatches(grid)
+    if (matches.length === 0) {
       const endTimer = setTimeout(() => {
         setIsCascading(false)
         // Check for deadlock
-        if (movesLeft > 0 && !checkValidMovesExist(grid)) {
+        if (movesLeft > 0 && !hasAnyValidMoves(grid)) {
           setIsShuffling(true)
           setTimeout(() => {
-            let reordered = generateMatchFreeGrid()
-            while (!checkValidMovesExist(reordered)) {
-              reordered = generateMatchFreeGrid()
-            }
-            setGrid(reordered)
+            setGrid(getNonDeadlockedGrid())
             setIsShuffling(false)
           }, 1200)
         }
@@ -179,20 +105,20 @@ export default function Match3Page() {
 
     // A match exists, process elimination
     const timer = setTimeout(() => {
-      const newGrid = grid.map((row) => [...row])
+      const newGrid = grid.map(row => [...row])
+
       // 1. Clear matched cells
-      coords.forEach((key) => {
-        const [r, c] = key.split(',').map(Number)
+      matches.forEach(({ r, c }) => {
         newGrid[r][c] = null
       })
 
-      // Calculate score based on match count, max run, and combo multiplier
-      const basePoints = coords.size * 30
-      const runBonus = maxRun >= 5 ? 500 : maxRun === 4 ? 200 : 0
+      // Calculate score based on match count and combo
+      const basePoints = matches.length * 30
       const currentCombo = combo + 1
-      const totalPoints = (basePoints + runBonus) * currentCombo
+      const bonus = matches.length >= 5 ? 500 : matches.length === 4 ? 200 : 0
+      const totalPoints = (basePoints + bonus) * currentCombo
 
-      setScore((s) => {
+      setScore(s => {
         const nextScore = s + totalPoints
         if (nextScore > highScore) {
           setHighScore(nextScore)
@@ -207,9 +133,9 @@ export default function Match3Page() {
       setCombo(currentCombo)
 
       // 2. Drop existing items downward
-      for (let c = 0; c < GRID_SIZE; c++) {
-        let writeRow = GRID_SIZE - 1
-        for (let r = GRID_SIZE - 1; r >= 0; r--) {
+      for (let c = 0; c < MATCH3_SIZE; c++) {
+        let writeRow = MATCH3_SIZE - 1
+        for (let r = MATCH3_SIZE - 1; r >= 0; r--) {
           if (newGrid[r][c] !== null) {
             if (r !== writeRow) {
               newGrid[writeRow][c] = newGrid[r][c]
@@ -220,17 +146,17 @@ export default function Match3Page() {
         }
         // 3. Spawn new items from top
         for (let r = writeRow; r >= 0; r--) {
-          newGrid[r][c] = Math.floor(Math.random() * GEMS.length)
+          const randomGem = GEM_TYPES[Math.floor(Math.random() * GEM_TYPES.length)]
+          newGrid[r][c] = randomGem
         }
       }
 
       setGrid(newGrid)
-    }, 350)
+    }, 320)
 
     return () => clearTimeout(timer)
   }, [grid, isCascading, combo, movesLeft, highScore])
 
-  // Handle cell click
   const handleCellClick = (r: number, c: number) => {
     if (gameOver || isCascading || isShuffling || movesLeft <= 0) return
 
@@ -239,28 +165,25 @@ export default function Match3Page() {
       return
     }
 
-    // Second click: check adjacency
-    const isAdjacent =
-      (Math.abs(selected.r - r) === 1 && selected.c === c) ||
-      (Math.abs(selected.c - c) === 1 && selected.r === r)
-
-    if (isAdjacent) {
+    // Check adjacency
+    const dist = Math.abs(selected.r - r) + Math.abs(selected.c - c)
+    if (dist === 1) {
       // Test swap
-      const testGrid = grid.map((row) => [...row])
+      const testGrid = grid.map(row => [...row])
       const temp = testGrid[r][c]
       testGrid[r][c] = testGrid[selected.r][selected.c]
       testGrid[selected.r][selected.c] = temp
 
       const matches = findMatches(testGrid)
-      if (matches.coords.size > 0) {
+      if (matches.length >= 3) {
         // Valid move!
         setGrid(testGrid)
-        setMovesLeft((m) => m - 1)
+        setMovesLeft(m => m - 1)
         setCombo(0)
         setSelected(null)
         setIsCascading(true)
       } else {
-        // Invalid swap: re-select or shake
+        // Invalid swap: change selected
         setSelected({ r, c })
       }
     } else {
@@ -268,141 +191,145 @@ export default function Match3Page() {
     }
   }
 
-  return (
-    <div className="min-h-screen flex flex-col bg-[#050811] text-slate-100">
-      <Header />
+  const instructions = [
+    { title: '消除规则', desc: '点击相邻的两颗宝石进行交换，达成横向或纵向 3 颗以上同色宝石即可爆破消除。' },
+    { title: '连击奖励', desc: '重力下落再次引发消除将触发 Combo 连击加成，单次消除 4 颗或 5 颗将额外奖励高额暴击分。' },
+    { title: '防死局机制', desc: '当棋盘出现无解死局时，系统将自动识别并触发重新洗牌。' },
+  ]
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-8">
-        {/* Title */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <span className="p-1.5 rounded-xl bg-purple-500/20 text-purple-400">💎</span>
-              <span>经典宝石消消乐 (Match 3)</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              三消四消五消连击规则 · 级联自然重力下落 · 死局自动洗牌 · 步数挑战模式
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={startNewGame}
-              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-md shadow-purple-600/20"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>重新开始</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Game Container */}
-        <div className="grid grid-cols-1 md:grid-cols-[auto,240px] gap-6 justify-center items-start">
-          {/* Main Board */}
-          <div className="relative p-4 rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl flex flex-col items-center">
-            {/* Shuffling Banner */}
-            {isShuffling && (
-              <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm z-30 rounded-2xl flex flex-col items-center justify-center text-center p-6 animate-fadeIn">
-                <Shuffle className="w-8 h-8 text-amber-400 animate-spin mb-2" />
-                <span className="text-sm font-bold text-white">检测到无解死局</span>
-                <span className="text-xs text-slate-400 mt-1">正在自动重新洗牌...</span>
-              </div>
-            )}
-
-            {/* Game Over Banner */}
-            {gameOver && (
-              <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-30 rounded-2xl flex flex-col items-center justify-center text-center p-6">
-                <Sparkles className="w-8 h-8 text-amber-400 mb-2" />
-                <span className="text-xl font-bold text-white mb-1">挑战结束！</span>
-                <span className="text-xs text-slate-400 mb-4 font-mono">最终得分: {score}</span>
-                <button
-                  onClick={startNewGame}
-                  className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-600/30 transition"
-                >
-                  再来一盘
-                </button>
-              </div>
-            )}
-
-            {/* Board Grid */}
-            <div
-              className="grid gap-1.5 bg-slate-900/90 p-2.5 rounded-2xl border border-slate-800 select-none shadow-inner"
-              style={{
-                gridTemplateColumns: `repeat(${GRID_SIZE}, 44px)`,
-                gridTemplateRows: `repeat(${GRID_SIZE}, 44px)`,
-              }}
-            >
-              {grid.map((row, r) =>
-                row.map((gemIdx, c) => {
-                  const isSel = selected?.r === r && selected?.c === c
-                  const gem = gemIdx !== null ? GEMS[gemIdx] : null
-
-                  return (
-                    <button
-                      key={`${r}-${c}`}
-                      onClick={() => handleCellClick(r, c)}
-                      disabled={isCascading || isShuffling}
-                      className={`w-11 h-11 rounded-xl text-lg flex items-center justify-center transition-all duration-150 transform ${
-                        isSel
-                          ? 'scale-110 ring-4 ring-white shadow-xl z-20 brightness-110'
-                          : 'hover:scale-105 active:scale-95'
-                      } ${gem ? `${gem.bg} border-2 ${gem.border} ${gem.glow} shadow-md` : 'bg-slate-950/40'}`}
-                    >
-                      {gem ? gem.icon : ''}
-                    </button>
-                  )
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Right Stats Panel */}
-          <div className="space-y-4">
-            {/* Moves Left */}
-            <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/60 text-center">
-              <span className="text-xs text-slate-400 block mb-1">剩余可用步数</span>
-              <span className={`text-4xl font-mono font-bold ${movesLeft <= 5 ? 'text-rose-400 animate-pulse' : 'text-indigo-400'}`}>
-                {movesLeft}
-              </span>
-            </div>
-
-            {/* Score & Combo */}
-            <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/60 space-y-3">
-              <div>
-                <span className="text-xs text-slate-400 block">当前得分</span>
-                <span className="text-3xl font-mono font-bold text-purple-400">{score}</span>
-              </div>
-              {combo > 1 && (
-                <div className="flex items-center gap-1.5 text-xs text-amber-400 font-bold bg-amber-950/40 p-2 rounded-xl border border-amber-800/40 animate-bounce">
-                  <Zap className="w-4 h-4" />
-                  <span>{combo} 连击 Combo! 倍率加成</span>
-                </div>
-              )}
-              <div className="pt-2 border-t border-slate-800">
-                <span className="text-xs text-slate-400 flex items-center gap-1 mb-1">
-                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                  <span>历史最高分</span>
-                </span>
-                <span className="text-xl font-mono font-bold text-amber-400">{highScore}</span>
-              </div>
-            </div>
-
-            {/* Hint */}
-            <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/40 text-xs text-slate-400 space-y-1">
-              <span className="font-semibold text-slate-300 block">得分提示：</span>
-              <p>• 消除 3 颗宝石得基础分</p>
-              <p>• 消除 4 颗触发 +200 暴击加成</p>
-              <p>• 消除 5 颗触发 +500 超级大奖</p>
-              <p>• 连击越多次数，得分倍率越高！</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Non-intrusive AdSlot */}
-        <AdSlot placement="tool-bottom" className="mt-8" />
-      </main>
-
-      <Footer />
+  const controls = (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border bg-surface text-xs font-mono font-medium text-text-primary">
+        <Trophy className="w-3.5 h-3.5 text-amber-500" />
+        <span>最高分: {highScore}</span>
+      </div>
+      <button
+        onClick={startNewGame}
+        className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-secondary text-text-primary text-xs font-medium flex items-center gap-1.5 transition-colors shadow-subtle"
+      >
+        <RotateCcw className="w-3.5 h-3.5" />
+        <span>重新开始</span>
+      </button>
     </div>
+  )
+
+  return (
+    <GameLayout
+      title="宝石消消乐"
+      titleEn="Match 3 · Jewel Cascade"
+      categoryName="益智消除"
+      description="经典三消益智游戏。连续匹配 3 颗或以上相同宝石触发爆破，支持级联重力下落、死局智能重排与连击高分倍率机制。"
+      controlsNode={controls}
+      instructions={instructions}
+    >
+      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-[auto,260px] gap-6 items-start justify-center">
+        {/* Game Stage Area */}
+        <div className="relative p-3 sm:p-5 rounded-2xl border border-border bg-surface-secondary/40 shadow-subtle flex flex-col items-center">
+          {/* Shuffling Banner */}
+          {isShuffling && (
+            <div className="absolute inset-0 bg-surface/90 backdrop-blur-sm z-30 rounded-2xl flex flex-col items-center justify-center text-center p-6 animate-fadeIn">
+              <Shuffle className="w-8 h-8 text-amber-500 animate-spin mb-2" />
+              <span className="text-sm font-bold text-text-primary">检测到无解死局</span>
+              <span className="text-xs text-text-secondary mt-1">正在自动重新洗牌中...</span>
+            </div>
+          )}
+
+          {/* Game Over Banner */}
+          {gameOver && (
+            <div className="absolute inset-0 bg-surface/95 backdrop-blur-md z-30 rounded-2xl flex flex-col items-center justify-center text-center p-6">
+              <Sparkles className="w-8 h-8 text-amber-500 mb-2" />
+              <span className="text-xl font-bold text-text-primary mb-1">步数耗尽，挑战完成！</span>
+              <span className="text-sm text-text-secondary mb-4 font-mono">最终得分: {score}</span>
+              <button
+                onClick={startNewGame}
+                className="px-5 py-2.5 rounded-xl bg-accent text-accent-contrast text-xs font-semibold shadow-subtle hover:bg-accent-hover transition-colors"
+              >
+                再来一盘
+              </button>
+            </div>
+          )}
+
+          {/* Board Grid */}
+          <div
+            className="grid gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-2xl border border-border bg-surface shadow-inner select-none max-w-full overflow-hidden"
+            style={{
+              gridTemplateColumns: `repeat(${MATCH3_SIZE}, minmax(36px, 48px))`,
+              gridTemplateRows: `repeat(${MATCH3_SIZE}, minmax(36px, 48px))`,
+            }}
+          >
+            {grid.map((row, r) =>
+              row.map((gemType, c) => {
+                const isSel = selected?.r === r && selected?.c === c
+                const gem = gemType ? GEM_METAS[gemType] : null
+
+                return (
+                  <button
+                    key={`${r}-${c}`}
+                    onClick={() => handleCellClick(r, c)}
+                    disabled={isCascading || isShuffling || gameOver}
+                    className={`aspect-square rounded-xl text-lg sm:text-xl flex items-center justify-center transition-all duration-150 transform select-none ${
+                      isSel
+                        ? 'scale-110 ring-4 ring-accent shadow-lg z-20 brightness-110'
+                        : 'hover:scale-105 active:scale-95'
+                    } ${
+                      gem
+                        ? `${gem.bg} border-2 ${gem.border} ${gem.glow} shadow-sm text-white`
+                        : 'bg-surface-secondary/50'
+                    }`}
+                  >
+                    {gem ? gem.icon : ''}
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Status & Dashboard Side Panel */}
+        <div className="space-y-4 w-full">
+          {/* Moves Left */}
+          <div className="p-4 rounded-xl border border-border bg-surface text-center shadow-subtle">
+            <span className="text-xs text-text-muted block mb-1">剩余可用步数</span>
+            <span
+              className={`text-4xl font-mono font-bold tracking-tight ${
+                movesLeft <= 5 ? 'text-rose-500 animate-pulse' : 'text-accent'
+              }`}
+            >
+              {movesLeft}
+            </span>
+          </div>
+
+          {/* Score & Combo */}
+          <div className="p-4 rounded-xl border border-border bg-surface space-y-3 shadow-subtle">
+            <div>
+              <span className="text-xs text-text-muted block">当前得分</span>
+              <span className="text-3xl font-mono font-bold text-text-primary">{score}</span>
+            </div>
+            {combo > 1 && (
+              <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20 animate-bounce">
+                <Zap className="w-4 h-4" />
+                <span>{combo} 连击 Combo! 得分加倍</span>
+              </div>
+            )}
+            <div className="pt-2 border-t border-border flex items-center justify-between text-xs text-text-secondary">
+              <span className="flex items-center gap-1">
+                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                <span>最高纪录</span>
+              </span>
+              <span className="font-mono font-bold text-amber-600 dark:text-amber-400">{highScore}</span>
+            </div>
+          </div>
+
+          {/* Score Rules Card */}
+          <div className="p-4 rounded-xl border border-border bg-surface-secondary/40 text-xs text-text-secondary space-y-1.5">
+            <span className="font-semibold text-text-primary block">得分与技巧：</span>
+            <p>• 基础消除：每颗宝石 30 分</p>
+            <p>• 4消暴击：额外 +200 分</p>
+            <p>• 5消大奖：额外 +500 超级大奖</p>
+            <p>• 级联连击：每次连击得分倍增</p>
+          </div>
+        </div>
+      </div>
+    </GameLayout>
   )
 }

@@ -82,12 +82,28 @@ describe('Registry Integrity', () => {
       // Validate tier
       expect(['S', 'A', 'B']).toContain(tool.tier)
 
-      // Validate relatedTools
-      expect(tool.relatedTools.length).toBeGreaterThanOrEqual(2)
+      // Validate relatedTools: S/A tier must have 3-5 related tools
+      if (tool.tier === 'S' || tool.tier === 'A') {
+        expect(tool.relatedTools.length).toBeGreaterThanOrEqual(3)
+        expect(tool.relatedTools.length).toBeLessThanOrEqual(5)
+      } else {
+        expect(tool.relatedTools.length).toBeGreaterThanOrEqual(2)
+      }
+
       for (const rel of tool.relatedTools) {
         expect(allSlugs.has(rel)).toBe(true)
       }
     }
+  })
+
+  it('should strictly verify active, deprecated, total tools, and games exact counts', () => {
+    const active = getActiveTools()
+    const all = getAllTools()
+    const games = getAllGames()
+
+    expect(active.length).toBe(35)
+    expect(all.length).toBe(39) // 35 active + 4 deprecated
+    expect(games.length).toBe(8)
   })
 
   it('should register all 8 genuine games', () => {

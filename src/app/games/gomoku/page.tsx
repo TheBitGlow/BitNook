@@ -1,47 +1,47 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
-import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
-import { Grid3X3, RotateCcw, Bot, User } from 'lucide-react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
+import GameLayout from '@/components/games/GameLayout'
+import { useRecentGames } from '@/lib/storage'
+import { trackEvent } from '@/lib/analytics'
+import { RotateCcw, Bot, User, Trophy, Sparkles } from 'lucide-react'
+import {
+  GOMOKU_SIZE,
+  GomokuBoard,
+  GomokuStone,
+  createEmptyGomokuBoard,
+  findGomokuWinLine,
+  isGomokuBoardFull,
+} from '@/core/games/gomoku'
 
-const BOARD_SIZE = 15
-const WIN_COUNT = 5
-const CELL_SIZE = 32
-
-type Player = 'black' | 'white' | null
-type Board = Player[][]
 type Pos = { r: number; c: number }
 
 const STAR_POINTS = [
   [3, 3], [3, 7], [3, 11],
   [7, 3], [7, 7], [7, 11],
-  [11, 3], [11, 7], [11, 11]
+  [11, 3], [11, 7], [11, 11],
 ]
 
-// AI难度深度
 const AI_DEPTH: Record<string, number> = { easy: 2, medium: 3, hard: 4 }
-
-// 方向向量
 const DIRS: [number, number][] = [[0, 1], [1, 0], [1, 1], [1, -1]]
 
-// 评估棋型分数
-function evaluateLine(board: Board, r: number, c: number, dr: number, dc: number, player: Player): number {
+function evaluateLine(board: GomokuBoard, r: number, c: number, dr: number, dc: number, player: GomokuStone): number {
   if (!player) return 0
   let count = 0
   let openEnds = 0
   let nr = r + dr, nc = c + dc
-  while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc] === player) {
+  while (nr >= 0 && nr < GOMOKU_SIZE && nc >= 0 && nc < GOMOKU_SIZE && board[nr][nc] === player) {
     count++
     nr += dr; nc += dc
   }
-  if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc] === null) openEnds++
+  if (nr >= 0 && nr < GOMOKU_SIZE && nc >= 0 && nc < GOMOKU_SIZE && board[nr][nc] === null) openEnds++
+
   nr = r - dr; nc = c - dc
-  while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc] === player) {
+  while (nr >= 0 && nr < GOMOKU_SIZE && nc >= 0 && nc < GOMOKU_SIZE && board[nr][nc] === player) {
     count++
     nr -= dr; nc -= dc
   }
-  if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc] === null) openEnds++
+  if (nr >= 0 && nr < GOMOKU_SIZE && nc >= 0 && nc < GOMOKU_SIZE && board[nr][nc] === null) openEnds++
 
   if (count >= 5) return 100000
   if (count === 4 && openEnds === 2) return 10000
@@ -53,18 +53,18 @@ function evaluateLine(board: Board, r: number, c: number, dr: number, dc: number
   return count
 }
 
-function evaluateBoard(board: Board, player: Player): number {
+function evaluateBoard(board: GomokuBoard, player: GomokuStone): number {
   let score = 0
-  const opp = player === 'black' ? 'white' : 'black'
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
+  const opp: GomokuStone = player === 'black' ? 'white' : 'black'
+  for (let r = 0; r < GOMOKU_SIZE; r++) {
+    for (let c = 0; c < GOMOKU_SIZE; c++) {
       if (board[r][c] === player) {
         for (const [dr, dc] of DIRS) {
           score += evaluateLine(board, r, c, dr, dc, player)
         }
       } else if (board[r][c] === opp) {
         for (const [dr, dc] of DIRS) {
-          score -= evaluateLine(board, r, c, dr, dc, opp) * 1.1
+          score -= evaluateLine(board, r, c, dr, dc, opp) * 1.15
         }
       }
     }
@@ -72,12 +72,12 @@ function evaluateBoard(board: Board, player: Player): number {
   return score
 }
 
-function findWinningMove(board: Board, player: Player): Pos | null {
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
+function findWinningMove(board: GomokuBoard, player: 'black' | 'white'): Pos | null {
+  for (let r = 0; r < GOMOKU_SIZE; r++) {
+    for (let c = 0; c < GOMOKU_SIZE; c++) {
       if (!board[r][c]) {
         board[r][c] = player
-        if (checkWin(board, r, c, player)) {
+        if (findGomokuWinLine(board, r, c, player)) {
           board[r][c] = null
           return { r, c }
         }
@@ -88,31 +88,15 @@ function findWinningMove(board: Board, player: Player): Pos | null {
   return null
 }
 
-function checkWin(board: Board, row: number, col: number, player: Player): boolean {
-  if (!player) return false
-  for (const [dr, dc] of DIRS) {
-    let count = 1
-    let nr = row + dr, nc = col + dc
-    while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc] === player) {
-      count++; nr += dr; nc += dc
-    }
-    nr = row - dr; nc = col - dc
-    while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc] === player) {
-      count++; nr -= dr; nc -= dc
-    }
-    if (count >= 5) return true
-  }
-  return false
-}
+function minimax(board: GomokuBoard, depth: number, alpha: number, beta: number, maximizing: boolean, aiPlayer: 'black' | 'white'): number {
+  const human: 'black' | 'white' = aiPlayer === 'black' ? 'white' : 'black'
 
-function minimax(board: Board, depth: number, alpha: number, beta: number, maximizing: boolean, aiPlayer: Player): number {
-  const human = aiPlayer === 'black' ? 'white' : 'black'
-
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (board[r][c]) {
-        if (checkWin(board, r, c, board[r][c])) {
-          return board[r][c] === aiPlayer ? 1000000 + depth : -1000000 - depth
+  for (let r = 0; r < GOMOKU_SIZE; r++) {
+    for (let c = 0; c < GOMOKU_SIZE; c++) {
+      const stone = board[r][c]
+      if (stone) {
+        if (findGomokuWinLine(board, r, c, stone)) {
+          return stone === aiPlayer ? 1000000 + depth : -1000000 - depth
         }
       }
     }
@@ -122,14 +106,14 @@ function minimax(board: Board, depth: number, alpha: number, beta: number, maxim
 
   const candidates: Pos[] = []
   const checked = new Set<string>()
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
+  for (let r = 0; r < GOMOKU_SIZE; r++) {
+    for (let c = 0; c < GOMOKU_SIZE; c++) {
       if (board[r][c]) {
         for (let dr = -2; dr <= 2; dr++) {
           for (let dc = -2; dc <= 2; dc++) {
             const nr = r + dr, nc = c + dc
             const key = `${nr},${nc}`
-            if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && !board[nr][nc] && !checked.has(key)) {
+            if (nr >= 0 && nr < GOMOKU_SIZE && nc >= 0 && nc < GOMOKU_SIZE && !board[nr][nc] && !checked.has(key)) {
               checked.add(key)
               candidates.push({ r: nr, c: nc })
             }
@@ -145,7 +129,7 @@ function minimax(board: Board, depth: number, alpha: number, beta: number, maxim
     return ca - cb
   })
 
-  const maxNodes = depth === 1 ? 50 : depth === 2 ? 30 : 20
+  const maxNodes = depth === 1 ? 50 : depth === 2 ? 30 : 15
   const limitedCandidates = candidates.slice(0, maxNodes)
 
   if (maximizing) {
@@ -172,12 +156,30 @@ function minimax(board: Board, depth: number, alpha: number, beta: number, maxim
 }
 
 export default function GomokuPage() {
-  const [board, setBoard] = useState<Board>(() =>
-    Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null))
-  )
+  const { recordRecentGame } = useRecentGames()
+
+  useEffect(() => {
+    recordRecentGame('gomoku')
+    trackEvent('game_start', { gameSlug: 'gomoku' })
+  }, [recordRecentGame])
+
+  const [wins, setWins] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('bitnook_gomoku_wins')
+        if (saved) return Number(saved)
+      } catch {
+        // ignore
+      }
+    }
+    return 0
+  })
+
+  const [board, setBoard] = useState<GomokuBoard>(() => createEmptyGomokuBoard())
   const [currentPlayer, setCurrentPlayer] = useState<'black' | 'white'>('black')
-  const [winner, setWinner] = useState<Player>(null)
+  const [winner, setWinner] = useState<GomokuStone>(null)
   const [winLine, setWinLine] = useState<[number, number][]>([])
+  const [lastMove, setLastMove] = useState<Pos | null>(null)
   const [gameOver, setGameOver] = useState(false)
   const [gameMode, setGameMode] = useState<'pvp' | 'ai'>('ai')
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
@@ -187,68 +189,52 @@ export default function GomokuPage() {
   const boardRef = useRef(board)
   useEffect(() => { boardRef.current = board }, [board])
 
-  const checkWinLine = useCallback((board: Board, row: number, col: number, player: Player): [number, number][] | null => {
-    if (!player) return null
-    for (const [dr, dc] of DIRS) {
-      const line: [number, number][] = [[row, col]]
-      for (let i = 1; i < WIN_COUNT; i++) {
-        const r = row + dr * i, c = col + dc * i
-        if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === player) {
-          line.push([r, c])
-        } else break
-      }
-      for (let i = 1; i < WIN_COUNT; i++) {
-        const r = row - dr * i, c = col - dc * i
-        if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === player) {
-          line.push([r, c])
-        } else break
-      }
-      if (line.length >= WIN_COUNT) return line
-    }
-    return null
-  }, [])
-
   const aiMove = useCallback(() => {
     setThinking(true)
     setTimeout(() => {
       const currentBoard = boardRef.current
       const depth = AI_DEPTH[difficulty]
-      const aiPlayer = playerColor === 'black' ? 'white' : 'black'
+      const aiPlayer: 'black' | 'white' = playerColor === 'black' ? 'white' : 'black'
+      const human = playerColor
 
+      // 1. Check if AI can win immediately
       const winPos = findWinningMove(currentBoard, aiPlayer)
       if (winPos) {
         const nb = currentBoard.map(r => [...r])
         nb[winPos.r][winPos.c] = aiPlayer
         setBoard(nb)
-        const wl = checkWinLine(nb, winPos.r, winPos.c, aiPlayer)
+        setLastMove(winPos)
+        const wl = findGomokuWinLine(nb, winPos.r, winPos.c, aiPlayer)
         if (wl) { setWinLine(wl); setWinner(aiPlayer); setGameOver(true) }
         setThinking(false)
         return
       }
 
-      const human = playerColor
+      // 2. Block human if they can win next turn
       const blockPos = findWinningMove(currentBoard, human)
       if (blockPos) {
         const nb = currentBoard.map(r => [...r])
         nb[blockPos.r][blockPos.c] = aiPlayer
         setBoard(nb)
-        const wl = checkWinLine(nb, blockPos.r, blockPos.c, aiPlayer)
+        setLastMove(blockPos)
+        const wl = findGomokuWinLine(nb, blockPos.r, blockPos.c, aiPlayer)
         if (wl) { setWinLine(wl); setWinner(aiPlayer); setGameOver(true) }
         else setCurrentPlayer(human)
         setThinking(false)
         return
       }
 
+      // 3. Minimax heuristic
       const candidates: Pos[] = []
       const checked = new Set<string>()
-      for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) {
+      for (let r = 0; r < GOMOKU_SIZE; r++) {
+        for (let c = 0; c < GOMOKU_SIZE; c++) {
           if (currentBoard[r][c]) {
             for (let dr = -2; dr <= 2; dr++) {
               for (let dc = -2; dc <= 2; dc++) {
                 const nr = r + dr, nc = c + dc
                 const key = `${nr},${nc}`
-                if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && !currentBoard[nr][nc] && !checked.has(key)) {
+                if (nr >= 0 && nr < GOMOKU_SIZE && nc >= 0 && nc < GOMOKU_SIZE && !currentBoard[nr][nc] && !checked.has(key)) {
                   checked.add(key)
                   candidates.push({ r: nr, c: nc })
                 }
@@ -281,12 +267,13 @@ export default function GomokuPage() {
       const nb = currentBoard.map(r => [...r])
       nb[bestMove.r][bestMove.c] = aiPlayer
       setBoard(nb)
-      const wl = checkWinLine(nb, bestMove.r, bestMove.c, aiPlayer)
+      setLastMove(bestMove)
+      const wl = findGomokuWinLine(nb, bestMove.r, bestMove.c, aiPlayer)
       if (wl) { setWinLine(wl); setWinner(aiPlayer); setGameOver(true) }
       else setCurrentPlayer(human)
       setThinking(false)
-    }, 500)
-  }, [difficulty, playerColor, checkWinLine])
+    }, 400)
+  }, [difficulty, playerColor])
 
   const handleClick = (row: number, col: number) => {
     if (gameOver || thinking) return
@@ -296,18 +283,28 @@ export default function GomokuPage() {
     const newBoard = board.map(r => [...r])
     newBoard[row][col] = currentPlayer
     setBoard(newBoard)
+    setLastMove({ r: row, c: col })
     boardRef.current = newBoard
 
-    const winResult = checkWinLine(newBoard, row, col, currentPlayer)
+    const winResult = findGomokuWinLine(newBoard, row, col, currentPlayer)
     if (winResult) {
       setWinner(currentPlayer)
       setWinLine(winResult)
       setGameOver(true)
+      if (gameMode === 'ai' && currentPlayer === playerColor) {
+        const nextWins = wins + 1
+        setWins(nextWins)
+        try {
+          localStorage.setItem('bitnook_gomoku_wins', String(nextWins))
+        } catch {
+          // ignore
+        }
+      }
+      trackEvent('game_complete', { gameSlug: 'gomoku', status: 'success' })
       return
     }
 
-    const isDraw = newBoard.every(r => r.every(c => c !== null))
-    if (isDraw) {
+    if (isGomokuBoardFull(newBoard)) {
       setGameOver(true)
       return
     }
@@ -315,14 +312,17 @@ export default function GomokuPage() {
     const next = currentPlayer === 'black' ? 'white' : 'black'
     setCurrentPlayer(next)
 
-    if (gameMode === 'ai' && !gameOver) aiMove()
+    if (gameMode === 'ai' && !gameOver) {
+      aiMove()
+    }
   }
 
   const resetGame = () => {
-    setBoard(Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null)))
+    setBoard(createEmptyGomokuBoard())
     setCurrentPlayer('black')
     setWinner(null)
     setWinLine([])
+    setLastMove(null)
     setGameOver(false)
     setThinking(false)
   }
@@ -340,12 +340,13 @@ export default function GomokuPage() {
       setThinking(true)
       setTimeout(() => {
         const aiPlayer = 'black'
-        const nb = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null))
+        const nb = createEmptyGomokuBoard()
         nb[7][7] = aiPlayer
         setBoard(nb)
+        setLastMove({ r: 7, c: 7 })
         setCurrentPlayer('white')
         setThinking(false)
-      }, 500)
+      }, 400)
     }
   }
 
@@ -353,182 +354,247 @@ export default function GomokuPage() {
     return winLine.some(([r, c]) => r === row && c === col)
   }
 
+  const instructions = [
+    { title: '对弈模式', desc: '可自由在 AI 对战与双人同屏对战之间切换。' },
+    { title: '先手规则', desc: '传统规则黑子先手。在 AI 模式下可一键切换执黑或执白。' },
+    { title: '胜负判定', desc: '任意一方在横向、竖向或对角线连续落成 5 颗同色棋子即判定获胜。' },
+  ]
+
+  const controls = (
+    <div className="flex items-center gap-2 flex-wrap">
+      {wins > 0 && (
+        <span className="px-2.5 py-1 text-xs rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1 font-mono font-medium">
+          <Trophy className="w-3.5 h-3.5" />
+          <span>{wins} 胜</span>
+        </span>
+      )}
+      <button
+        onClick={resetGame}
+        className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-secondary text-text-primary text-xs font-medium flex items-center gap-1.5 transition-colors shadow-subtle"
+      >
+        <RotateCcw className="w-3.5 h-3.5" />
+        <span>重新开始</span>
+      </button>
+    </div>
+  )
+
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
-
-      <main className="flex-1 py-8 px-4">
-        <div className="max-w-lg mx-auto">
-          {/* Page Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-[#F59E0B]/20 flex items-center justify-center">
-                <Grid3X3 className="w-5 h-5 text-[#F59E0B]" />
-              </div>
-              <h1 className="text-2xl font-bold text-white">五子棋</h1>
-              <span className="px-2 py-1 text-xs rounded-full bg-[#F59E0B]/20 text-[#F59E0B]">
-                {gameMode === 'ai' ? 'AI对战' : '双人对弈'}
-              </span>
-            </div>
-            <p className="text-[#94A3B8]">{gameMode === 'ai' ? '你执黑方先行，AI执白方后行' : '双人对弈模式'}</p>
-          </div>
-
-          {/* Game Mode */}
-          <div className="flex gap-2 mb-4">
+    <GameLayout
+      title="五子棋"
+      titleEn="Gomoku · Five in a Row"
+      categoryName="经典棋盘"
+      description="经典 15×15 棋盘五子棋。支持多深度 Minimax 启发式 AI 引擎与本地双人对战，支持先后手互换与连续胜局统计。"
+      controlsNode={controls}
+      instructions={instructions}
+    >
+      <div className="w-full max-w-[560px] flex flex-col items-center">
+        {/* Mode & Difficulty Settings */}
+        <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-4 p-3 rounded-xl border border-border bg-surface-secondary/50">
+          <div className="flex rounded-lg border border-border bg-surface p-0.5">
             <button
               onClick={() => switchMode('ai')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${gameMode === 'ai' ? 'bg-[#F59E0B] text-white' : 'bg-[#111827] text-[#94A3B8] hover:text-white'}`}
+              className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                gameMode === 'ai'
+                  ? 'bg-accent text-accent-contrast shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
             >
-              <Bot className="w-4 h-4" />AI对战
+              <Bot className="w-3.5 h-3.5" />
+              <span>人机对战</span>
             </button>
             <button
               onClick={() => switchMode('pvp')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${gameMode === 'pvp' ? 'bg-[#F59E0B] text-white' : 'bg-[#111827] text-[#94A3B8] hover:text-white'}`}
+              className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                gameMode === 'pvp'
+                  ? 'bg-accent text-accent-contrast shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
             >
-              <User className="w-4 h-4" />双人对战
+              <User className="w-3.5 h-3.5" />
+              <span>双人对战</span>
             </button>
           </div>
 
-          {/* AI Difficulty */}
           {gameMode === 'ai' && (
-            <div className="flex gap-2 mb-4">
-              <span className="text-[#94A3B8] text-sm self-center">难度:</span>
-              {(['easy', 'medium', 'hard'] as const).map(d => (
-                <button
-                  key={d}
-                  onClick={() => setDifficulty(d)}
-                  className={`py-1.5 px-3 rounded-lg text-xs font-medium ${difficulty === d ? 'bg-[#06B6D4] text-white' : 'bg-[#111827] text-[#94A3B8]'}`}
-                >
-                  {d === 'easy' ? '简单' : d === 'medium' ? '中等' : '困难'}
-                </button>
-              ))}
+            <div className="flex items-center gap-2 justify-between sm:justify-end">
+              <div className="flex items-center gap-1 text-xs">
+                {(['easy', 'medium', 'hard'] as const).map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setDifficulty(d)}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                      difficulty === d
+                        ? 'bg-accent/15 text-accent border border-accent/30 font-semibold'
+                        : 'text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    {d === 'easy' ? '初级' : d === 'medium' ? '中级' : '大师'}
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={switchSide}
-                className="ml-auto py-1.5 px-3 rounded-lg text-xs font-medium bg-[#111827] text-[#94A3B8] hover:text-white"
+                className="px-2.5 py-1 rounded text-xs font-medium border border-border bg-surface text-text-secondary hover:text-text-primary transition-colors"
+                title="切换黑白方先后手"
               >
-                换先手
+                执{playerColor === 'black' ? '黑先行' : '白后行'} (换边)
               </button>
             </div>
           )}
+        </div>
 
-          {/* Game Info */}
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-3">
-              <div className={`w-5 h-5 rounded-full ${currentPlayer === 'black' ? 'bg-[#1a1a1a] border-2 border-white' : 'bg-white'}`} />
-              <span className="text-white font-medium">
-                {winner ? `${winner === 'black' ? '黑方' : '白方'}获胜！` :
-                  gameOver ? '平局' : thinking ? 'AI思考中...' : `${currentPlayer === 'black' ? '黑方' : '白方'}执子`}
-              </span>
-            </div>
-            <button
-              onClick={resetGame}
-              className="px-4 py-2 bg-[#F59E0B] text-white rounded-lg hover:bg-[#D97706] flex items-center gap-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              重新开始
-            </button>
+        {/* Turn Status Alert */}
+        <div className="w-full flex items-center justify-between px-3 py-2.5 mb-4 rounded-xl border border-border bg-surface shadow-subtle">
+          <div className="flex items-center gap-2.5">
+            <div
+              className={`w-4 h-4 rounded-full shadow-inner border ${
+                currentPlayer === 'black'
+                  ? 'bg-slate-900 border-slate-700'
+                  : 'bg-white border-slate-300'
+              }`}
+            />
+            <span className="text-xs sm:text-sm font-semibold text-text-primary">
+              {winner
+                ? `${winner === 'black' ? '黑方' : '白方'}取得胜利！`
+                : gameOver
+                ? '棋盘走满，双方平局'
+                : thinking
+                ? 'AI 正在推演棋路中...'
+                : `${currentPlayer === 'black' ? '黑方' : '白方'}走棋`}
+            </span>
           </div>
 
-          {/* Game Board */}
-          <div className="bg-[#1A2235] rounded-xl p-4">
-            <div
-              className="relative mx-auto bg-[#DEB887] rounded"
-              style={{
-                width: BOARD_SIZE * CELL_SIZE,
-                height: BOARD_SIZE * CELL_SIZE,
-              }}
-            >
-              {/* Grid Lines - horizontal */}
-              {Array(BOARD_SIZE).fill(null).map((_, i) => (
-                <div
-                  key={`h-${i}`}
-                  className="absolute bg-[#8B7355]"
-                  style={{
-                    left: CELL_SIZE / 2 - 1,
-                    right: CELL_SIZE / 2 - 1,
-                    height: 2,
-                    top: CELL_SIZE / 2 + i * CELL_SIZE - 1,
-                  }}
-                />
-              ))}
+          {winner && (
+            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              <span>对局结束</span>
+            </span>
+          )}
+        </div>
 
-              {/* Grid Lines - vertical */}
-              {Array(BOARD_SIZE).fill(null).map((_, i) => (
-                <div
-                  key={`v-${i}`}
-                  className="absolute bg-[#8B7355]"
-                  style={{
-                    top: CELL_SIZE / 2 - 1,
-                    bottom: CELL_SIZE / 2 - 1,
-                    width: 2,
-                    left: CELL_SIZE / 2 + i * CELL_SIZE - 1,
-                  }}
-                />
-              ))}
+        {/* Wooden Gomoku Board Container */}
+        <div className="relative p-2.5 sm:p-4 rounded-2xl bg-[#E3C28D] dark:bg-[#B38F56] border-4 border-[#8B5E34] shadow-2xl overflow-hidden max-w-full">
+          <div
+            className="relative select-none"
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              aspectRatio: '1 / 1',
+            }}
+          >
+            {/* SVG Grid Overlay for Crisp Resolution Scaling */}
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+            >
+              {/* Grid Lines */}
+              {Array.from({ length: GOMOKU_SIZE }).map((_, i) => {
+                const pos = (i + 0.5) * (100 / GOMOKU_SIZE)
+                const start = 0.5 * (100 / GOMOKU_SIZE)
+                const end = (GOMOKU_SIZE - 0.5) * (100 / GOMOKU_SIZE)
+                return (
+                  <g key={i}>
+                    {/* Horizontal */}
+                    <line
+                      x1={start}
+                      y1={pos}
+                      x2={end}
+                      y2={pos}
+                      stroke="#5D3A1A"
+                      strokeWidth="0.35"
+                    />
+                    {/* Vertical */}
+                    <line
+                      x1={pos}
+                      y1={start}
+                      x2={pos}
+                      y2={end}
+                      stroke="#5D3A1A"
+                      strokeWidth="0.35"
+                    />
+                  </g>
+                )
+              })}
 
               {/* Star Points */}
-              {STAR_POINTS.map(([r, c]) => (
-                <div
-                  key={`star-${r}-${c}`}
-                  className="absolute w-3 h-3 rounded-full bg-[#8B7355]"
-                  style={{
-                    left: CELL_SIZE / 2 + c * CELL_SIZE - 1.5,
-                    top: CELL_SIZE / 2 + r * CELL_SIZE - 1.5,
-                  }}
-                />
-              ))}
+              {STAR_POINTS.map(([r, c]) => {
+                const cx = (c + 0.5) * (100 / GOMOKU_SIZE)
+                const cy = (r + 0.5) * (100 / GOMOKU_SIZE)
+                return (
+                  <circle
+                    key={`star-${r}-${c}`}
+                    cx={cx}
+                    cy={cy}
+                    r="0.8"
+                    fill="#5D3A1A"
+                  />
+                )
+              })}
+            </svg>
 
-              {/* Pieces */}
+            {/* Clickable Grid Cells & Stones */}
+            <div
+              className="absolute inset-0 grid"
+              style={{
+                gridTemplateColumns: `repeat(${GOMOKU_SIZE}, 1fr)`,
+                gridTemplateRows: `repeat(${GOMOKU_SIZE}, 1fr)`,
+              }}
+            >
               {board.map((row, r) =>
-                row.map((cell, c) => (
-                  <button
-                    key={`${r}-${c}`}
-                    onClick={() => handleClick(r, c)}
-                    className="absolute w-8 h-8 rounded-full flex items-center justify-center z-10"
-                    style={{
-                      left: CELL_SIZE / 2 + c * CELL_SIZE - 16,
-                      top: CELL_SIZE / 2 + r * CELL_SIZE - 16,
-                    }}
-                  >
-                    {cell && (
-                      <div
-                        className={`w-7 h-7 rounded-full transition-transform ${
-                          cell === 'black'
-                            ? 'bg-[#1a1a1a]'
-                            : 'bg-white border border-gray-200'
-                        } ${isWinningCell(r, c) ? 'ring-4 ring-[#F59E0B]' : ''}`}
-                      />
-                    )}
-                  </button>
-                ))
+                row.map((cell, c) => {
+                  const isWinning = isWinningCell(r, c)
+                  const isLast = lastMove?.r === r && lastMove?.c === c
+
+                  return (
+                    <button
+                      key={`${r}-${c}`}
+                      onClick={() => handleClick(r, c)}
+                      disabled={gameOver || thinking || (gameMode === 'ai' && currentPlayer !== playerColor)}
+                      className="relative w-full h-full flex items-center justify-center p-0.5 transition-transform focus:outline-none"
+                    >
+                      {cell && (
+                        <div
+                          className={`w-[84%] h-[84%] rounded-full shadow-md flex items-center justify-center transition-all ${
+                            cell === 'black'
+                              ? 'bg-gradient-to-br from-slate-700 via-slate-900 to-black border border-slate-900'
+                              : 'bg-gradient-to-br from-white via-slate-100 to-slate-200 border border-slate-300'
+                          } ${
+                            isWinning
+                              ? 'ring-4 ring-amber-400 scale-105 animate-pulse z-20'
+                              : ''
+                          }`}
+                        >
+                          {/* Last Move Indicator */}
+                          {isLast && !isWinning && (
+                            <div
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                cell === 'black' ? 'bg-amber-400' : 'bg-rose-500'
+                              }`}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  )
+                })
               )}
             </div>
           </div>
+        </div>
 
-          {/* Legend */}
-          <div className="mt-6 flex justify-center gap-8">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-[#1a1a1a] border-2 border-white" />
-              <span className="text-[#94A3B8]">黑方{playerColor === 'black' && gameMode === 'ai' ? '(你)' : ''}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-white border border-gray-300" />
-              <span className="text-[#94A3B8]">白方{playerColor === 'white' && gameMode === 'ai' ? '(你)' : ''}</span>
-            </div>
+        {/* Legend */}
+        <div className="flex items-center gap-6 mt-4 text-xs text-text-secondary">
+          <div className="flex items-center gap-1.5">
+            <span className="w-3.5 h-3.5 rounded-full bg-slate-900 border border-slate-700 shadow-sm inline-block" />
+            <span>黑方 {gameMode === 'ai' && (playerColor === 'black' ? '(你)' : '(AI)')}</span>
           </div>
-
-          {/* Rules */}
-          <div className="mt-6 p-4 bg-[#111927]/50 rounded-xl border border-[rgba(99,102,241,0.1)]">
-            <p className="text-sm text-[#94A3B8]">
-              <span className="text-[#F59E0B]">规则：</span>
-              {gameMode === 'ai' ? '你执黑方先行，AI执白方后行。' : ''}
-              最先将5子连成一条线（横、竖、斜）者获胜。
-            </p>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3.5 h-3.5 rounded-full bg-white border border-slate-300 shadow-sm inline-block" />
+            <span>白方 {gameMode === 'ai' && (playerColor === 'white' ? '(你)' : '(AI)')}</span>
           </div>
         </div>
-      </main>
-
-      <Footer />
-    </div>
+      </div>
+    </GameLayout>
   )
 }

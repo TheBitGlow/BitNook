@@ -84,6 +84,33 @@ export function useFavorites() {
   return { favorites, toggleFavorite, isFavorite, isLoaded }
 }
 
+const STORAGE_KEY_RECENT_TIMESTAMPS = 'bitnook_recent_tools_timestamps'
+const STORAGE_KEY_RECENT_GAMES_TIMESTAMPS = 'bitnook_recent_games_timestamps'
+
+export function getRecentToolTimestamp(slug: string): number | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_RECENT_TIMESTAMPS)
+    if (!raw) return null
+    const map = JSON.parse(raw)
+    return map[slug] || null
+  } catch {
+    return null
+  }
+}
+
+export function getRecentGameTimestamp(slug: string): number | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_RECENT_GAMES_TIMESTAMPS)
+    if (!raw) return null
+    const map = JSON.parse(raw)
+    return map[slug] || null
+  } catch {
+    return null
+  }
+}
+
 // Hook for Recent Tools
 export function useRecentTools(maxItems = 8) {
   const recentTools = useSyncExternalStore(subscribeRecentTools, getRecentToolsSnapshot, getServerSnapshot)
@@ -96,6 +123,15 @@ export function useRecentTools(maxItems = 8) {
       const filtered = current.filter((s) => s !== slug)
       const next = [slug, ...filtered].slice(0, maxItems)
       safeSetItem(STORAGE_KEY_RECENT, next)
+
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_RECENT_TIMESTAMPS)
+        const map = raw ? JSON.parse(raw) : {}
+        map[slug] = Date.now()
+        localStorage.setItem(STORAGE_KEY_RECENT_TIMESTAMPS, JSON.stringify(map))
+      } catch {
+        // Ignore storage error
+      }
     },
     [maxItems]
   )
@@ -115,9 +151,76 @@ export function useRecentGames(maxItems = 4) {
       const filtered = current.filter((s) => s !== slug)
       const next = [slug, ...filtered].slice(0, maxItems)
       safeSetItem(STORAGE_KEY_RECENT_GAMES, next)
+
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_RECENT_GAMES_TIMESTAMPS)
+        const map = raw ? JSON.parse(raw) : {}
+        map[slug] = Date.now()
+        localStorage.setItem(STORAGE_KEY_RECENT_GAMES_TIMESTAMPS, JSON.stringify(map))
+      } catch {
+        // Ignore storage error
+      }
     },
     [maxItems]
   )
 
   return { recentGames, recordRecentGame, isLoaded }
+}
+
+// ==================== Game High Score / Records ====================
+
+const STORAGE_PREFIX_GAME_SCORE = 'bitnook_game_score_'
+
+export function getGameHighScore(slug: string): number {
+  if (typeof window === 'undefined') return 0
+  try {
+    const raw = localStorage.getItem(`${STORAGE_PREFIX_GAME_SCORE}${slug}`)
+    return raw ? Number(raw) || 0 : 0
+  } catch {
+    return 0
+  }
+}
+
+export function saveGameHighScore(slug: string, score: number): void {
+  if (typeof window === 'undefined') return
+  try {
+    const current = getGameHighScore(slug)
+    if (score > current) {
+      localStorage.setItem(`${STORAGE_PREFIX_GAME_SCORE}${slug}`, String(score))
+      window.dispatchEvent(new Event(`storage_${STORAGE_PREFIX_GAME_SCORE}${slug}`))
+      window.dispatchEvent(new Event('storage'))
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function useGameHighScore(slug: string) {
+  const subscribe = useCallback(
+    (callback: () => void) => {
+      if (typeof window === 'undefined') return () => {}
+      const handle = () => callback()
+      window.addEventListener(`storage_${STORAGE_PREFIX_GAME_SCORE}${slug}`, handle)
+      window.addEventListener('storage', handle)
+      return () => {
+        window.removeEventListener(`storage_${STORAGE_PREFIX_GAME_SCORE}${slug}`, handle)
+        window.removeEventListener('storage', handle)
+      }
+    },
+    [slug]
+  )
+
+  const getSnapshot = useCallback(() => getGameHighScore(slug), [slug])
+  const getServerSnapshot = useCallback(() => 0, [])
+
+  const highScore = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+
+  const setScore = useCallback(
+    (newScore: number) => {
+      saveGameHighScore(slug, newScore)
+    },
+    [slug]
+  )
+
+  return { highScore, setScore }
 }

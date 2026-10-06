@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import ToolLayout from '@/components/tools/ToolLayout'
 import { ArrowRightLeft, Copy, Check } from 'lucide-react'
+import { trackEvent } from '@/lib/analytics'
 
 interface UnitDef {
   id: string
@@ -244,6 +245,7 @@ export default function UnitConverterPage() {
     try {
       await navigator.clipboard.writeText(text)
       setCopiedKey(key)
+      trackEvent('copy', { tool: 'unit' })
       setTimeout(() => setCopiedKey(''), 2000)
     } catch {
       // ignore
@@ -251,7 +253,45 @@ export default function UnitConverterPage() {
   }
 
   return (
-    <ToolLayout slug="unit">
+    <ToolLayout
+      toolSlug="unit"
+      principlesTitle="单位换算数学模型与国际度量衡基准"
+      principles={
+        <>
+          <p>
+            <strong>1. 国际单位制 (SI) 基准锚定：</strong>
+            本工具将每种物理量体系（如长度、重量、面积、体积、温度、压强、能量、功率）映射到单一国际基准标准单位（如米、千克、平方米、立方米、摄氏度、帕斯卡、焦耳、瓦特）。所有换算均通过“输入单位 → 基准单位 (toBase) → 目标单位 (fromBase)”双向线性/仿射变换实现，杜绝级联累积误差。
+          </p>
+          <p>
+            <strong>2. 仿射温度变换与英制高精度常数：</strong>
+            摄氏度与华氏度换算遵循仿射变换 \(°F = °C \times 1.8 + 32\)；英制长度与质量采用 1959 年《国际码与磅协议》严格法定义义（1 英寸 = 25.4 毫米，1 磅 = 0.45359237 千克）。
+          </p>
+        </>
+      }
+      howToSteps={[
+        '选择物理量分类（如长度、重量、面积、体积、温度、压力等）。',
+        '在源数值框输入待换算数值，并在下拉框中选取源单位。',
+        '在目标单位下拉框中选择要转换的单位，系统实时计算并显示换算结果。',
+        '下方同步展示该分类下所有已知度量衡的对照清单，支持一键单独复制任意换算值。',
+      ]}
+      faq={[
+        {
+          question: '为什么换算结果保留多位小数？',
+          answer:
+            '为兼顾微观精密工程与日常生活需要，本工具对于极小数值保留合理有效数字，对于标准整数及常见倍率提供规整格式，杜绝浮点数例如 0.0000000000000002 的溢出显示。',
+        },
+        {
+          question: '中国传统市制单位（市斤、市尺、市亩）的法定换算关系是什么？',
+          answer:
+            '中国市制单位依据 1959 年国务院《关于统一计量制度的命令》统一法定化：1市尺 = 1/3米；1市斤 = 0.5千克 (500克)；1市亩 = 2000/3平方米 (约666.67平方米)。',
+        },
+      ]}
+      dataSources={[
+        { name: '国际计量局 (BIPM) 国际单位制 (SI) 规范手册', description: '米、千克、秒等基本物理单位标准定义' },
+        { name: '国家法定计量单位 (GB 3100/3101/3102-1993)', description: '中国法定计量单位与传统市制换算系数' },
+      ]}
+      disclaimer="本换算结果经双精度算法严格核验，供日常生活、工程估算与科研参考。涉及重大航天器设计或高精医药剂量，请以国家法定计量规程为准。"
+    >
       <div className="space-y-6">
         {/* Category Selector Tabs */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -263,8 +303,8 @@ export default function UnitConverterPage() {
                 onClick={() => handleCategoryChange(cat.id)}
                 className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold transition border ${
                   isActive
-                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                    : 'bg-slate-900/80 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
+                    ? 'bg-[#6366F1] text-white border-[#6366F1] shadow-md shadow-[#6366F1]/20'
+                    : 'bg-[#141C2E] text-[#94A3B8] border-[#1E293B] hover:text-white hover:border-[#334155]'
                 }`}
               >
                 <span>{cat.iconText}</span>
@@ -275,23 +315,24 @@ export default function UnitConverterPage() {
         </div>
 
         {/* Interactive Converter Card */}
-        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/60 p-6 shadow-xl">
+        <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 shadow-xl">
           <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-center">
             {/* From Box */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300 block">源数值与单位</label>
+              <label className="text-xs font-semibold text-[#CBD5E1] block">源数值与单位</label>
               <div className="space-y-2">
                 <input
                   type="number"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder="输入数值"
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-base focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-[#090D16] border border-[#1E293B] rounded-xl text-white font-mono text-base focus:outline-none focus:border-[#6366F1]"
                 />
                 <select
+                  aria-label="源单位"
                   value={fromIndex}
                   onChange={(e) => setFromIndex(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-xs focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2 bg-[#090D16] border border-[#1E293B] rounded-xl text-[#CBD5E1] text-xs focus:outline-none focus:border-[#6366F1]"
                 >
                   {activeCategory.units.map((u, i) => (
                     <option key={u.id} value={i}>
@@ -305,8 +346,9 @@ export default function UnitConverterPage() {
             {/* Swap Button */}
             <div className="flex justify-center pt-5">
               <button
+                type="button"
                 onClick={handleSwap}
-                className="p-3 rounded-full bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 hover:text-white transition shadow-sm"
+                className="p-3 rounded-full bg-[#141C2E] border border-[#1E293B] hover:bg-[#1E293B] text-[#94A3B8] hover:text-white transition shadow-sm"
                 title="交换单位"
               >
                 <ArrowRightLeft className="w-4 h-4" />
@@ -316,25 +358,27 @@ export default function UnitConverterPage() {
             {/* To Box */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <label className="text-xs font-semibold text-slate-300">目标单位与结果</label>
+                <label className="text-xs font-semibold text-[#CBD5E1]">目标单位与结果</label>
                 {convertedResult && (
                   <button
+                    type="button"
                     onClick={() => copyToClipboard(convertedResult, 'main')}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition"
+                    className="text-xs text-[#818CF8] hover:text-white flex items-center gap-1 transition"
                   >
-                    {copiedKey === 'main' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    {copiedKey === 'main' ? <Check className="w-3 h-3 text-[#10B981]" /> : <Copy className="w-3 h-3" />}
                     <span>{copiedKey === 'main' ? '已复制' : '复制结果'}</span>
                   </button>
                 )}
               </div>
               <div className="space-y-2">
-                <div className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-indigo-300 font-mono text-base truncate min-h-[46px] flex items-center font-bold">
+                <div className="w-full px-3.5 py-2.5 bg-[#090D16] border border-[#1E293B] rounded-xl text-[#38BDF8] font-mono text-base truncate min-h-[46px] flex items-center font-bold">
                   {convertedResult || '0'}
                 </div>
                 <select
+                  aria-label="目标单位"
                   value={toIndex}
                   onChange={(e) => setToIndex(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-xs focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2 bg-[#090D16] border border-[#1E293B] rounded-xl text-[#CBD5E1] text-xs focus:outline-none focus:border-[#6366F1]"
                 >
                   {activeCategory.units.map((u, i) => (
                     <option key={u.id} value={i}>
@@ -348,13 +392,13 @@ export default function UnitConverterPage() {
         </div>
 
         {/* All Units Comparison Table */}
-        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/60 p-6 space-y-3">
+        <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 space-y-3">
           <div className="flex justify-between items-center mb-1">
-            <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
               <span>{activeCategory.iconText}</span>
               <span>{activeCategory.name}全量单位对照</span>
             </h3>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-[#94A3B8] font-mono">
               基准: {inputValue || '0'} {fromUnit?.symbol}
             </span>
           </div>
@@ -370,27 +414,28 @@ export default function UnitConverterPage() {
                   key={unit.id}
                   className={`p-3 rounded-xl border transition flex items-center justify-between ${
                     isSelected
-                      ? 'bg-indigo-950/40 border-indigo-600/80'
+                      ? 'bg-[#6366F1]/15 border-[#6366F1]/60'
                       : isSource
-                      ? 'bg-slate-950/90 border-slate-700'
-                      : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
+                      ? 'bg-[#141C2E] border-[#1E293B]'
+                      : 'bg-[#090D16] border-[#1E293B]/70 hover:border-[#334155]'
                   }`}
                 >
                   <div className="min-w-0 pr-2">
                     <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-xs font-semibold text-slate-300">{unit.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono">
+                      <span className="text-xs font-semibold text-[#CBD5E1]">{unit.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#141C2E] text-[#94A3B8] font-mono border border-[#1E293B]">
                         {unit.symbol}
                       </span>
                     </div>
-                    <span className="text-xs font-mono text-slate-200 block truncate font-medium">{formatted}</span>
+                    <span className="text-xs font-mono text-white block truncate font-medium">{formatted}</span>
                   </div>
                   <button
+                    type="button"
                     onClick={() => copyToClipboard(formatted, `unit-${idx}`)}
-                    className="shrink-0 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                    className="shrink-0 p-1.5 text-[#94A3B8] hover:text-white rounded-lg hover:bg-[#1E293B] transition"
                     title="复制数值"
                   >
-                    {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {isCopied ? <Check className="w-3.5 h-3.5 text-[#10B981]" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               )

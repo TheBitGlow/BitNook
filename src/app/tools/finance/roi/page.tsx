@@ -5,7 +5,8 @@ import ToolLayout from '@/components/tools/ToolLayout'
 import {
   calculateInvestmentMetrics,
 } from '@/lib/finance/roi'
-import { TrendingUp, BarChart2, DollarSign, Percent, Plus, Trash2 } from 'lucide-react'
+import { TrendingUp, BarChart2, DollarSign, Percent, Plus, Trash2, Copy, Check } from 'lucide-react'
+import { trackEvent } from '@/lib/analytics'
 
 export default function ROIPage() {
   const [initialInvestment, setInitialInvestment] = useState<number>(100000)
@@ -13,6 +14,7 @@ export default function ROIPage() {
   const [cashFlowsInput, setCashFlowsInput] = useState<number[]>([
     25000, 30000, 35000, 40000, 45000,
   ])
+  const [copied, setCopied] = useState(false)
 
   const result = useMemo(() => {
     return calculateInvestmentMetrics(initialInvestment, cashFlowsInput, discountRate)
@@ -35,6 +37,28 @@ export default function ROIPage() {
   const removeYear = (index: number) => {
     if (cashFlowsInput.length <= 1) return
     setCashFlowsInput(cashFlowsInput.filter((_, i) => i !== index))
+  }
+
+  const handleCopyReport = async () => {
+    const report = [
+      `【BitNook 投资回报分析报告 (ROI / NPV / IRR)】`,
+      `• 初始投资本金：¥${formatMoney(initialInvestment)}`,
+      `• 基准折现率：${discountRate}%`,
+      `• 内部收益率 (IRR)：${result.irr !== null ? `${result.irr}%` : '无有效数值解'}`,
+      `• 净现值 (NPV)：${result.npv >= 0 ? '+' : ''}¥${formatMoney(result.npv)} (${result.npv >= 0 ? '超额价值创造方案' : '未达预期折现收益率'})`,
+      `• 简单投资回报率 (ROI)：${result.simpleROI}% (未折现净利润 ¥${formatMoney(result.netProfit)})`,
+      `• 现金流测算周期：${cashFlowsInput.length} 年`,
+      `测算基准：基于牛顿-拉夫逊数值迭代求解 IRR 及净现值折现现金流模型 (DCF)。`,
+    ].join('\n')
+
+    try {
+      await navigator.clipboard.writeText(report)
+      setCopied(true)
+      trackEvent('copy', { tool: 'roi' })
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // ignore
+    }
   }
 
   const faq = [
@@ -81,10 +105,15 @@ export default function ROIPage() {
       }
       howToSteps={howToSteps}
       faq={faq}
+      dataSources={[
+        { name: '金融管理会计学会 (IMA) 资本预算指引', description: '折现现金流模型 (DCF) 与净现值 (NPV) 计算规范' },
+        { name: '牛顿-拉夫逊数值分析法 (Newton-Raphson)', description: '非线性高阶多项式内部收益率 IRR 收敛算法' },
+      ]}
+      disclaimer="本工具提供的内部收益率 (IRR)、净现值 (NPV) 及投资回报率计算结果仅供项目财务测算与决策参考，不构成任何商业投资保证或法律依据。实际投资需充分评估风险与通胀因素。"
     >
       <div className="space-y-6">
         {/* Input Card */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
+        <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 sm:p-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
             <div>
               <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
@@ -96,7 +125,7 @@ export default function ROIPage() {
                 step="1000"
                 value={initialInvestment}
                 onChange={(e) => setInitialInvestment(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-white focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-[#1E293B] bg-[#090D16] px-4 py-3 text-2xl font-bold font-mono text-white focus:border-[#6366F1] focus:outline-none"
               />
             </div>
 
@@ -111,7 +140,7 @@ export default function ROIPage() {
                 max="50"
                 value={discountRate}
                 onChange={(e) => setDiscountRate(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-white focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-[#1E293B] bg-[#090D16] px-4 py-3 text-2xl font-bold font-mono text-white focus:border-[#6366F1] focus:outline-none"
               />
             </div>
           </div>
@@ -125,7 +154,7 @@ export default function ROIPage() {
               <button
                 type="button"
                 onClick={addYear}
-                className="flex items-center gap-1 rounded-lg border border-[rgba(99,102,241,0.3)] bg-[#111827] px-3 py-1 text-xs text-[#6366F1] hover:text-white hover:border-[#6366F1] transition-all"
+                className="flex items-center gap-1 rounded-lg border border-[#1E293B] bg-[#141C2E] px-3 py-1.5 text-xs text-[#818CF8] hover:text-white hover:border-[#6366F1]/50 transition-all"
               >
                 <Plus className="h-3.5 w-3.5" />
                 增加一年现金流
@@ -136,7 +165,7 @@ export default function ROIPage() {
               {cashFlowsInput.map((val, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-2 rounded-xl border border-[rgba(99,102,241,0.12)] bg-[#070A12]/60 p-2.5"
+                  className="flex items-center gap-2 rounded-xl border border-[#1E293B] bg-[#141C2E]/60 p-2.5"
                 >
                   <span className="w-16 text-xs text-[#94A3B8] font-mono">
                     第 {idx + 1} 年:
@@ -146,7 +175,7 @@ export default function ROIPage() {
                     step="1000"
                     value={val}
                     onChange={(e) => updateCashFlow(idx, Number(e.target.value))}
-                    className="flex-1 rounded-lg border border-[rgba(99,102,241,0.15)] bg-[#0B0F19] px-2.5 py-1 text-sm font-mono text-white focus:border-[#6366F1] focus:outline-none"
+                    className="flex-1 rounded-lg border border-[#1E293B] bg-[#090D16] px-2.5 py-1 text-sm font-mono text-white focus:border-[#6366F1] focus:outline-none"
                   />
                   {cashFlowsInput.length > 1 && (
                     <button
@@ -164,9 +193,31 @@ export default function ROIPage() {
           </div>
         </div>
 
+        {/* Results Header with Copy */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-[#CBD5E1]">投资效益与贴现结果</h2>
+          <button
+            type="button"
+            onClick={handleCopyReport}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#1E293B] bg-[#141C2E] text-xs font-medium text-[#94A3B8] hover:text-white hover:border-[#6366F1]/50 transition-colors"
+          >
+            {copied ? (
+              <>
+                <Check className="h-3.5 w-3.5 text-[#10B981]" />
+                <span className="text-[#10B981]">已复制报告</span>
+              </>
+            ) : (
+              <>
+                <Copy className="h-3.5 w-3.5" />
+                <span>复制分析报告</span>
+              </>
+            )}
+          </button>
+        </div>
+
         {/* Results Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
+          <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 text-center">
             <p className="text-xs text-[#94A3B8] mb-1">内部收益率 (IRR)</p>
             <p className="text-3xl font-extrabold text-[#10B981] font-mono tracking-tight my-1">
               {result.irr !== null ? `${result.irr}%` : '无有效数值解'}
@@ -174,7 +225,7 @@ export default function ROIPage() {
             <p className="text-[11px] text-[#64748B]">使净现值等于0时的真实贴现率</p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
+          <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 text-center">
             <p className="text-xs text-[#94A3B8] mb-1">净现值 (NPV, {discountRate}%折现)</p>
             <p
               className={`text-3xl font-extrabold font-mono tracking-tight my-1 ${
@@ -188,7 +239,7 @@ export default function ROIPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
+          <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 text-center">
             <p className="text-xs text-[#94A3B8] mb-1">简单投资回报率 (ROI)</p>
             <p className="text-3xl font-extrabold text-[#38BDF8] font-mono tracking-tight my-1">
               {result.simpleROI}%
@@ -200,23 +251,23 @@ export default function ROIPage() {
         </div>
 
         {/* Detailed Cashflow Discounting Table */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-6">
+        <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6">
           <h3 className="font-semibold text-white text-sm sm:text-base mb-4">
             逐年现金流折现现值明细 (Discounted Cash Flow Schedule)
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs sm:text-sm text-left font-mono">
               <thead>
-                <tr className="border-b border-[rgba(99,102,241,0.15)] text-[#64748B]">
+                <tr className="border-b border-[#1E293B] text-[#64748B]">
                   <th className="py-2.5 px-3">周期</th>
                   <th className="py-2.5 px-3 text-right">名义现金流</th>
                   <th className="py-2.5 px-3 text-right">折现系数 (1/(1+r)^t)</th>
                   <th className="py-2.5 px-3 text-right">折现后净现值贡献</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[rgba(99,102,241,0.06)]">
-                <tr className="hover:bg-[#1E293B]/20 text-[#EF4444]">
-                  <td className="py-2.5 px-3">第 0 年 (初始投资)</td>
+              <tbody className="divide-y divide-[#1E293B]/60">
+                <tr className="hover:bg-[#141C2E]/40 text-[#EF4444]">
+                  <td className="py-2.5 px-3 font-medium">第 0 年 (初始投资)</td>
                   <td className="py-2.5 px-3 text-right">-¥{formatMoney(initialInvestment)}</td>
                   <td className="py-2.5 px-3 text-right">1.0000</td>
                   <td className="py-2.5 px-3 text-right">-¥{formatMoney(initialInvestment)}</td>
@@ -225,7 +276,7 @@ export default function ROIPage() {
                   const factor = 1 / Math.pow(1 + discountRate / 100, cf.period)
                   const pv = cf.amount * factor
                   return (
-                    <tr key={cf.period} className="hover:bg-[#1E293B]/20 text-white">
+                    <tr key={cf.period} className="hover:bg-[#141C2E]/40 text-white">
                       <td className="py-2.5 px-3 text-[#94A3B8]">第 {cf.period} 年</td>
                       <td className="py-2.5 px-3 text-right text-[#10B981]">+¥{formatMoney(cf.amount)}</td>
                       <td className="py-2.5 px-3 text-right text-[#94A3B8]">{factor.toFixed(4)}</td>

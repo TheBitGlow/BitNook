@@ -26,22 +26,25 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#090D16] disabled:opacity-50 disabled:pointer-events-none active:scale-[0.99] select-none'
+      'inline-flex items-center justify-center font-medium rounded-md transition-all duration-120 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-canvas disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98] select-none cursor-pointer'
 
     const sizeStyles = {
-      sm: 'text-xs px-3 py-1.5 gap-1.5 h-8',
-      md: 'text-sm px-4 py-2 gap-2 h-10',
-      lg: 'text-base px-5 py-2.5 gap-2.5 h-12 font-semibold',
+      sm: 'text-xs px-2.5 py-1 gap-1.5 h-8',
+      md: 'text-xs sm:text-sm px-3.5 py-1.5 gap-2 h-9',
+      lg: 'text-sm sm:text-base px-4 py-2 gap-2 h-10 font-semibold',
     }
 
     const variantStyles = {
-      primary: 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm border border-blue-500/30',
+      primary:
+        'bg-accent hover:bg-accent-hover text-white shadow-subtle border border-transparent',
       secondary:
-        'bg-[#141C2E] hover:bg-[#1A243B] text-slate-200 hover:text-white border border-[#1E293B]',
+        'bg-surface hover:bg-surface-secondary text-text-primary border border-border hover:border-border-hover shadow-subtle',
       outline:
-        'bg-transparent hover:bg-[#141C2E] text-slate-300 hover:text-white border border-[#1E293B] hover:border-slate-700',
-      ghost: 'bg-transparent hover:bg-[#141C2E] text-slate-400 hover:text-white',
-      danger: 'bg-rose-600 hover:bg-rose-500 text-white shadow-sm border border-rose-500/30',
+        'bg-transparent hover:bg-surface-secondary text-text-secondary hover:text-text-primary border border-border hover:border-border-hover',
+      ghost:
+        'bg-transparent hover:bg-surface-secondary text-text-secondary hover:text-text-primary',
+      danger:
+        'bg-danger hover:bg-danger/90 text-white shadow-subtle border border-transparent',
     }
 
     return (
@@ -52,7 +55,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         className={`${baseStyles} ${sizeStyles[size]} ${variantStyles[variant]} ${className}`}
         {...props}
       >
-        {isLoading && <Loader2 className="w-4 h-4 animate-spin text-current" />}
+        {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-current" />}
         {!isLoading && leftIcon && <span className="shrink-0">{leftIcon}</span>}
         <span>{children}</span>
         {!isLoading && rightIcon && <span className="shrink-0">{rightIcon}</span>}
@@ -62,3 +65,4 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 )
 
 Button.displayName = 'Button'
+export default Button

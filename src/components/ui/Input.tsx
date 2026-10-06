@@ -31,13 +31,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-medium text-slate-300 mb-1.5">
+          <label htmlFor={inputId} className="block text-xs font-medium text-text-secondary mb-1">
             {label}
           </label>
         )}
         <div className="relative flex items-center">
           {leftIcon && (
-            <span className="absolute left-3 text-slate-400 pointer-events-none shrink-0">
+            <span className="absolute left-3 text-text-muted pointer-events-none shrink-0">
               {leftIcon}
             </span>
           )}
@@ -45,12 +45,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             ref={ref}
             value={value}
-            className={`w-full bg-[#141C2E] text-slate-100 placeholder-slate-500 text-sm rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 h-10 ${
-              leftIcon ? 'pl-9' : 'pl-3.5'
-            } ${rightIcon || onClear ? 'pr-9' : 'pr-3.5'} ${
+            className={`w-full bg-surface text-text-primary placeholder:text-text-muted text-xs sm:text-sm rounded-md border transition-colors focus:outline-none focus:ring-2 focus:ring-accent/15 focus:border-accent h-9 ${
+              leftIcon ? 'pl-8' : 'pl-3'
+            } ${rightIcon || onClear ? 'pr-8' : 'pr-3'} ${
               error
-                ? 'border-rose-500/60 focus:border-rose-500 focus:ring-rose-500/20'
-                : 'border-[#1E293B] hover:border-slate-700'
+                ? 'border-danger focus:border-danger focus:ring-danger/15'
+                : 'border-border hover:border-border-hover'
             } ${className}`}
             {...props}
           />
@@ -58,23 +58,24 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button"
               onClick={onClear}
-              className="absolute right-3 p-0.5 text-slate-400 hover:text-white transition-colors"
-              aria-label="Clear input"
+              className="absolute right-2.5 p-0.5 text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+              aria-label="清空输入"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
           {!onClear && rightIcon && (
-            <span className="absolute right-3 text-slate-400 pointer-events-none shrink-0">
+            <span className="absolute right-2.5 text-text-muted pointer-events-none shrink-0">
               {rightIcon}
             </span>
           )}
         </div>
-        {error && <p className="mt-1 text-xs text-rose-400 font-medium">{error}</p>}
-        {!error && helperText && <p className="mt-1 text-xs text-slate-400">{helperText}</p>}
+        {error && <p className="mt-1 text-xs text-danger font-medium">{error}</p>}
+        {!error && helperText && <p className="mt-1 text-xs text-text-muted">{helperText}</p>}
       </div>
     )
   }
 )
 
 Input.displayName = 'Input'
+export default Input

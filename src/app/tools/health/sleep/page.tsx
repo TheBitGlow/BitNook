@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import ToolLayout from '@/components/tools/ToolLayout'
-import { Moon, Clock, BedDouble, Sun } from 'lucide-react'
+import { Moon, BedDouble, Sun } from 'lucide-react'
 
 export default function SleepPage() {
   const [mode, setMode] = useState<'wake' | 'sleep'>('wake')
@@ -44,20 +44,20 @@ export default function SleepPage() {
 
       const totalSleepHours = (sleepDuration / 60).toFixed(1)
       let label = '推荐黄金睡眠'
-      let badgeColor = 'text-[#10B981] bg-[#10B981]/15 border-[#10B981]/30'
+      let badgeColor = 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
 
       if (c === 6) {
         label = '充足充沛睡眠 (9小时)'
-        badgeColor = 'text-[#38BDF8] bg-[#38BDF8]/15 border-[#38BDF8]/30'
+        badgeColor = 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/30'
       } else if (c === 5) {
         label = '成人理想时长 (7.5小时)'
-        badgeColor = 'text-[#10B981] bg-[#10B981]/15 border-[#10B981]/30'
+        badgeColor = 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
       } else if (c === 4) {
         label = '适度短周期 (6小时)'
-        badgeColor = 'text-[#F59E0B] bg-[#F59E0B]/15 border-[#F59E0B]/30'
+        badgeColor = 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30'
       } else {
         label = '紧急小憩/短睡眠 (4.5小时)'
-        badgeColor = 'text-[#94A3B8] bg-[#1E293B] border-[rgba(99,102,241,0.2)]'
+        badgeColor = 'text-text-muted bg-surface-elevated border-border'
       }
 
       return {
@@ -120,19 +120,19 @@ export default function SleepPage() {
     >
       <div className="space-y-6">
         {/* Input Card */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
+        <div className="card p-6 sm:p-8 space-y-6">
           {/* Mode Selector */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setMode('wake')}
               className={`flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-xs sm:text-sm font-semibold border transition-all ${
                 mode === 'wake'
-                  ? 'border-[#8B5CF6] bg-[#8B5CF6]/20 text-white shadow-lg'
-                  : 'border-[rgba(99,102,241,0.15)] bg-[#070A12] text-[#94A3B8] hover:text-white'
+                  ? 'border-accent-primary bg-accent-primary/10 text-accent-primary shadow-sm font-bold'
+                  : 'border-border bg-canvas text-text-muted hover:text-text-primary'
               }`}
             >
-              <Sun className="h-4 w-4 text-[#F59E0B]" />
+              <Sun className="h-4 w-4 text-amber-500" />
               设定目标起床时间
             </button>
             <button
@@ -140,37 +140,37 @@ export default function SleepPage() {
               onClick={() => setMode('sleep')}
               className={`flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-xs sm:text-sm font-semibold border transition-all ${
                 mode === 'sleep'
-                  ? 'border-[#8B5CF6] bg-[#8B5CF6]/20 text-white shadow-lg'
-                  : 'border-[rgba(99,102,241,0.15)] bg-[#070A12] text-[#94A3B8] hover:text-white'
+                  ? 'border-accent-primary bg-accent-primary/10 text-accent-primary shadow-sm font-bold'
+                  : 'border-border bg-canvas text-text-muted hover:text-text-primary'
               }`}
             >
-              <Moon className="h-4 w-4 text-[#8B5CF6]" />
+              <Moon className="h-4 w-4 text-indigo-500" />
               设定计划入睡时间
             </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 {mode === 'wake' ? '期望在何时醒来？' : '准备在何时上床躺下？'}
               </label>
               <input
                 type="time"
                 value={inputTime}
                 onChange={(e) => setInputTime(e.target.value)}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-3xl font-bold font-mono text-center text-white focus:border-[#8B5CF6] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-3xl font-bold font-mono text-center text-text-primary focus:border-accent-primary focus:outline-none transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 入睡潜伏期（闭眼到睡着的平均耗时，分钟）
               </label>
               <select
                 aria-label="入睡耗时"
                 value={latencyMinutes}
                 onChange={(e) => setLatencyMinutes(Number(e.target.value))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-white font-medium focus:border-[#8B5CF6] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-text-primary font-medium focus:border-accent-primary focus:outline-none transition-colors text-sm"
               >
                 <option value={10}>10 分钟（入睡极快）</option>
                 <option value={15}>15 分钟（标准均值）</option>
@@ -182,9 +182,9 @@ export default function SleepPage() {
         </div>
 
         {/* Schedule List */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-6">
-          <h3 className="font-semibold text-white text-sm sm:text-base mb-4 flex items-center gap-2">
-            <BedDouble className="h-5 w-5 text-[#8B5CF6]" />
+        <div className="card p-6 space-y-4">
+          <h3 className="font-semibold text-text-primary text-sm sm:text-base flex items-center gap-2">
+            <BedDouble className="h-5 w-5 text-accent-primary" />
             {mode === 'wake' ? '建议上床入睡时间点' : '建议闹钟唤醒时间点'}
           </h3>
 
@@ -192,20 +192,20 @@ export default function SleepPage() {
             {scheduleResults.map((item) => (
               <div
                 key={item.cycles}
-                className="rounded-2xl border border-[rgba(99,102,241,0.12)] bg-[#070A12]/60 p-5 hover:border-[rgba(99,102,241,0.25)] transition-all"
+                className="rounded-2xl border border-border bg-surface-elevated p-5 hover:border-accent-primary/40 transition-all space-y-2"
               >
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between">
                   <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${item.badgeColor}`}>
                     {item.label}
                   </span>
-                  <span className="text-xs text-[#64748B] font-mono">
+                  <span className="text-xs text-text-muted font-mono">
                     {item.cycles} 个周期 · 约 {item.hours}h
                   </span>
                 </div>
-                <p className="text-3xl font-extrabold text-white font-mono my-1 tracking-tight">
+                <p className="text-3xl font-extrabold text-text-primary font-mono tracking-tight my-1">
                   {item.timeStr}
                 </p>
-                <p className="text-xs text-[#94A3B8]">
+                <p className="text-xs text-text-muted">
                   {mode === 'wake'
                     ? `于 ${item.timeStr} 上床，加上 ${latencyMinutes} 分钟入睡等待，在第 ${item.cycles} 周期结束醒来。`
                     : `于 ${inputTime} 入睡，预计在第 ${item.cycles} 个周期末尾约 ${item.timeStr} 自然醒来。`}

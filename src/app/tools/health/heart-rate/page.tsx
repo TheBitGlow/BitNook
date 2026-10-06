@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import ToolLayout from '@/components/tools/ToolLayout'
-import { Heart, RotateCcw, Activity } from 'lucide-react'
+import { RotateCcw, Activity } from 'lucide-react'
 
 type Method = 'reserve' | 'max'
 type Formula = 'fox' | 'tanaka'
@@ -131,7 +131,7 @@ export default function HeartRatePage() {
   return (
     <ToolLayout
       toolSlug="heart-rate"
-      principlesTitle="训练心率区间与运动生理学计算原理"
+      principlesTitle="训练心率区间与运动生理学计算原理（估算模型）"
       principles={
         <>
           <p>
@@ -156,25 +156,25 @@ export default function HeartRatePage() {
     >
       <div className="space-y-6">
         {/* Input Card */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
-          <div className="flex items-center justify-between border-b border-[rgba(99,102,241,0.1)] pb-4 mb-6">
-            <h3 className="font-semibold text-white text-sm sm:text-base flex items-center gap-2">
-              <Activity className="h-5 w-5 text-[#EF4444]" />
+        <div className="card p-6 sm:p-8 space-y-6">
+          <div className="flex items-center justify-between border-b border-border pb-4">
+            <h3 className="font-semibold text-text-primary text-sm sm:text-base flex items-center gap-2">
+              <Activity className="h-5 w-5 text-accent-primary" />
               生理参数与计算模型设置
             </h3>
             <button
               type="button"
               onClick={reset}
-              className="flex items-center gap-1.5 rounded-lg border border-[rgba(99,102,241,0.2)] bg-[#111827] px-3 py-1.5 text-xs text-[#94A3B8] hover:text-white transition-colors"
+              className="btn-secondary flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               恢复默认
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 年龄 (岁)
               </label>
               <input
@@ -183,12 +183,12 @@ export default function HeartRatePage() {
                 max={100}
                 value={age}
                 onChange={(e) => setAge(clamp(Number(e.target.value), 10, 100))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-mono focus:border-[#EF4444] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-2.5 text-text-primary font-mono focus:border-accent-primary focus:outline-none transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 静息心率 (bpm)
               </label>
               <input
@@ -197,19 +197,19 @@ export default function HeartRatePage() {
                 max={120}
                 value={restingHR}
                 onChange={(e) => setRestingHR(clamp(Number(e.target.value), 30, 120))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-mono focus:border-[#EF4444] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-2.5 text-text-primary font-mono focus:border-accent-primary focus:outline-none transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 最大心率算法
               </label>
               <select
                 aria-label="最大心率算法"
                 value={formula}
                 onChange={(e) => setFormula(e.target.value as Formula)}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-medium focus:border-[#EF4444] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-2.5 text-text-primary font-medium focus:border-accent-primary focus:outline-none transition-colors text-sm"
               >
                 <option value="fox">Fox 公式 (220 - 年龄)</option>
                 <option value="tanaka">Tanaka 公式 (208 - 0.7×年龄)</option>
@@ -217,14 +217,14 @@ export default function HeartRatePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 区间计算方法
               </label>
               <select
                 aria-label="区间计算方法"
                 value={method}
                 onChange={(e) => setMethod(e.target.value as Method)}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-medium focus:border-[#EF4444] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-2.5 text-text-primary font-medium focus:border-accent-primary focus:outline-none transition-colors text-sm"
               >
                 <option value="reserve">心率储备法 (Karvonen 推荐)</option>
                 <option value="max">最大心率百分比法 (%HRmax)</option>
@@ -232,15 +232,15 @@ export default function HeartRatePage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-[#070A12]/60 rounded-xl p-3 border border-[rgba(99,102,241,0.1)]">
-            <span className="text-[#94A3B8]">
-              当前估算最大心率：<strong className="text-white font-mono">{estimatedMaxHR} bpm</strong>
-              ，实际设定：<strong className="text-white font-mono">{maxHR} bpm</strong>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-surface-elevated rounded-xl p-3 border border-border">
+            <span className="text-text-muted">
+              当前估算最大心率：<strong className="text-text-primary font-mono">{estimatedMaxHR} bpm</strong>
+              ，实际设定：<strong className="text-text-primary font-mono">{maxHR} bpm</strong>
             </span>
             <button
               type="button"
               onClick={syncEstimatedMax}
-              className="text-[#EF4444] hover:text-[#F87171] font-semibold"
+              className="text-accent-primary hover:underline font-semibold"
             >
               一键同步为公式估算值 ({estimatedMaxHR} bpm)
             </button>
@@ -249,56 +249,56 @@ export default function HeartRatePage() {
 
         {/* Results Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">基准最大心率 (Max HR)</p>
-            <p className="text-3xl font-extrabold text-[#EF4444] font-mono tracking-tight my-1">
-              {maxHR} <span className="text-sm font-sans text-[#94A3B8]">bpm</span>
+          <div className="card p-5 text-center">
+            <p className="text-xs text-text-muted mb-1">基准最大心率 (Max HR)</p>
+            <p className="text-3xl font-extrabold text-rose-600 dark:text-rose-400 font-mono tracking-tight my-1">
+              {maxHR} <span className="text-sm font-sans text-text-muted font-normal">bpm</span>
             </p>
-            <p className="text-xs text-[#64748B]">生理安全绝对极限</p>
+            <p className="text-xs text-text-muted">生理安全绝对极限</p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">静息清晨心率 (Resting HR)</p>
-            <p className="text-3xl font-extrabold text-[#38BDF8] font-mono tracking-tight my-1">
-              {restingHR} <span className="text-sm font-sans text-[#94A3B8]">bpm</span>
+          <div className="card p-5 text-center">
+            <p className="text-xs text-text-muted mb-1">静息清晨心率 (Resting HR)</p>
+            <p className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-mono tracking-tight my-1">
+              {restingHR} <span className="text-sm font-sans text-text-muted font-normal">bpm</span>
             </p>
-            <p className="text-xs text-[#64748B]">清晨未下床安静状态</p>
+            <p className="text-xs text-text-muted">清晨未下床安静状态</p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-5 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">有效心率储备 (HR Reserve)</p>
-            <p className="text-3xl font-extrabold text-[#10B981] font-mono tracking-tight my-1">
-              {heartRateReserve} <span className="text-sm font-sans text-[#94A3B8]">bpm</span>
+          <div className="card p-5 text-center">
+            <p className="text-xs text-text-muted mb-1">有效心率储备 (HR Reserve)</p>
+            <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono tracking-tight my-1">
+              {heartRateReserve} <span className="text-sm font-sans text-text-muted font-normal">bpm</span>
             </p>
-            <p className="text-xs text-[#64748B]">心功能可动用缓冲空间</p>
+            <p className="text-xs text-text-muted">心功能可动用缓冲空间</p>
           </div>
         </div>
 
         {/* Zones Spectrum Cards */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-6 space-y-4">
-          <h3 className="font-semibold text-white text-sm sm:text-base mb-2">
+        <div className="card p-6 space-y-4">
+          <h3 className="font-semibold text-text-primary text-sm sm:text-base">
             5 大运动生理学靶心率区间 (Target Heart Rate Zones)
           </h3>
           <div className="space-y-3">
             {zones.map((zone) => (
               <div
                 key={zone.key}
-                className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/60 p-4 border-l-4 transition-all"
+                className="rounded-xl border border-border bg-surface-elevated p-4 border-l-4 transition-all"
                 style={{ borderLeftColor: zone.color }}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-white text-sm">{zone.name}</span>
+                    <span className="font-bold text-text-primary text-sm">{zone.name}</span>
                   </div>
                   <span
                     className="font-mono text-base font-extrabold"
                     style={{ color: zone.color }}
                   >
-                    {zone.low} ~ {zone.high} <span className="text-xs font-normal text-[#94A3B8]">bpm</span>
+                    {zone.low} ~ {zone.high} <span className="text-xs font-normal text-text-muted">bpm</span>
                   </span>
                 </div>
-                <p className="text-xs text-[#94A3B8] mb-3 leading-relaxed">{zone.desc}</p>
-                <div className="h-2 bg-[#111827] rounded-full overflow-hidden">
+                <p className="text-xs text-text-muted mb-3 leading-relaxed">{zone.desc}</p>
+                <div className="h-2 bg-canvas rounded-full overflow-hidden border border-border">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{

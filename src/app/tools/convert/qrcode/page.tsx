@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import ToolLayout from '@/components/tools/ToolLayout'
 import QRCode from 'qrcode'
+import { trackEvent } from '@/lib/analytics'
 import {
   Download,
   Copy,
@@ -154,6 +155,7 @@ export default function QRCodeGeneratorPage() {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(blobUrl)
+      trackEvent('download', { toolSlug: 'qrcode' })
     } catch (err) {
       console.error('Download failed', err)
     }
@@ -171,10 +173,12 @@ export default function QRCodeGeneratorPage() {
           }),
         ])
         setCopied(true)
+        trackEvent('copy', { toolSlug: 'qrcode' })
         setTimeout(() => setCopied(false), 2000)
       } else {
         await navigator.clipboard.writeText(dataUrl)
         setCopied(true)
+        trackEvent('copy', { toolSlug: 'qrcode' })
         setTimeout(() => setCopied(false), 2000)
       }
     } catch {

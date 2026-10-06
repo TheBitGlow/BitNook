@@ -7,7 +7,7 @@ import {
   RetirementCategory,
   RETIREMENT_POLICY_METADATA,
 } from '@/lib/finance/retirement'
-import { Calendar, Clock, AlertCircle, Award, CheckCircle2, ShieldCheck } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 
 export default function RetirementPage() {
   const [birthYear, setBirthYear] = useState<number>(1985)
@@ -72,21 +72,21 @@ export default function RetirementPage() {
     >
       <div className="space-y-6">
         {/* Input Card */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
+        <div className="card p-6 sm:p-8 space-y-6">
           {/* Metadata Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(99,102,241,0.1)] pb-4 mb-6 text-xs text-[#94A3B8]">
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#10B981]" />
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4 text-xs text-text-muted">
+            <span className="flex items-center gap-1.5 font-medium">
+              <ShieldCheck className="h-3.5 w-3.5 text-accent-primary" />
               政策来源：{RETIREMENT_POLICY_METADATA.source}
             </span>
-            <span className="rounded-full bg-[#1E293B] px-3 py-1 font-mono text-[#CBD5E1]">
+            <span className="rounded-full bg-surface-elevated border border-border px-3 py-1 font-mono text-text-secondary">
               政策生效时间：{RETIREMENT_POLICY_METADATA.effectiveDate}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 出生年份
               </label>
               <input
@@ -95,19 +95,19 @@ export default function RetirementPage() {
                 max="2010"
                 value={birthYear}
                 onChange={(e) => setBirthYear(Number(e.target.value))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-xl font-bold font-mono text-white focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-xl font-bold font-mono text-text-primary focus:border-accent-primary focus:outline-none transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 出生月份
               </label>
               <select
                 aria-label="出生月份"
                 value={birthMonth}
                 onChange={(e) => setBirthMonth(Number(e.target.value))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-white font-medium focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-text-primary font-medium focus:border-accent-primary focus:outline-none transition-colors text-sm"
               >
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                   <option key={m} value={m}>
@@ -118,7 +118,7 @@ export default function RetirementPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-[#94A3B8] mb-2">
+              <label className="block text-xs font-semibold text-text-secondary mb-2">
                 原法定退休类别与人员身份
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -127,8 +127,8 @@ export default function RetirementPage() {
                   onClick={() => setCategory('male')}
                   className={`rounded-xl p-3.5 border text-left transition-all ${
                     category === 'male'
-                      ? 'border-[#6366F1] bg-[#6366F1]/15 text-white shadow'
-                      : 'border-[rgba(99,102,241,0.15)] bg-[#070A12] text-[#94A3B8] hover:text-white'
+                      ? 'border-accent-primary bg-accent-primary/10 text-text-primary shadow-sm'
+                      : 'border-border bg-surface-elevated text-text-muted hover:text-text-primary hover:border-accent-primary/40'
                   }`}
                 >
                   <div className="font-semibold text-sm">男职工</div>
@@ -140,8 +140,8 @@ export default function RetirementPage() {
                   onClick={() => setCategory('female-cadre')}
                   className={`rounded-xl p-3.5 border text-left transition-all ${
                     category === 'female-cadre'
-                      ? 'border-[#6366F1] bg-[#6366F1]/15 text-white shadow'
-                      : 'border-[rgba(99,102,241,0.15)] bg-[#070A12] text-[#94A3B8] hover:text-white'
+                      ? 'border-accent-primary bg-accent-primary/10 text-text-primary shadow-sm'
+                      : 'border-border bg-surface-elevated text-text-muted hover:text-text-primary hover:border-accent-primary/40'
                   }`}
                 >
                   <div className="font-semibold text-sm">女干部 / 管理与技术岗</div>
@@ -153,8 +153,8 @@ export default function RetirementPage() {
                   onClick={() => setCategory('female-worker')}
                   className={`rounded-xl p-3.5 border text-left transition-all ${
                     category === 'female-worker'
-                      ? 'border-[#6366F1] bg-[#6366F1]/15 text-white shadow'
-                      : 'border-[rgba(99,102,241,0.15)] bg-[#070A12] text-[#94A3B8] hover:text-white'
+                      ? 'border-accent-primary bg-accent-primary/10 text-text-primary shadow-sm'
+                      : 'border-border bg-surface-elevated text-text-muted hover:text-text-primary hover:border-accent-primary/40'
                   }`}
                 >
                   <div className="font-semibold text-sm">女工人</div>
@@ -167,69 +167,69 @@ export default function RetirementPage() {
 
         {/* Results Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">改革后法定退休时间</p>
-            <p className="text-3xl font-extrabold text-[#6366F1] font-mono tracking-tight my-1">
+          <div className="card p-6 text-center">
+            <p className="text-xs text-text-muted mb-1">改革后法定退休时间</p>
+            <p className="text-3xl font-extrabold text-accent-primary font-mono tracking-tight my-1">
               {result.statutoryRetirementDate}
             </p>
-            <p className="text-xs text-[#94A3B8]">
+            <p className="text-xs text-text-muted">
               退休年龄：
-              <span className="font-bold text-white">
+              <span className="font-bold text-text-primary">
                 {result.statutoryRetirementAge.years} 岁
                 {result.statutoryRetirementAge.months > 0 && ` ${result.statutoryRetirementAge.months} 个月`}
               </span>
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">延迟退休月份数</p>
-            <p className="text-3xl font-extrabold text-[#F59E0B] font-mono tracking-tight my-1">
-              +{result.delayedMonths} <span className="text-sm font-sans text-[#94A3B8]">个月</span>
+          <div className="card p-6 text-center">
+            <p className="text-xs text-text-muted mb-1">延迟退休月份数</p>
+            <p className="text-3xl font-extrabold text-amber-600 dark:text-amber-400 font-mono tracking-tight my-1">
+              +{result.delayedMonths} <span className="text-sm font-sans text-text-muted font-normal">个月</span>
             </p>
-            <p className="text-xs text-[#64748B]">
+            <p className="text-xs text-text-muted">
               原法定退休时间：{result.originalRetirementDate}（{result.originalRetirementAge}周岁）
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
-            <p className="text-xs text-[#94A3B8] mb-1">基本养老金最低缴费年限</p>
-            <p className="text-3xl font-extrabold text-[#10B981] font-mono tracking-tight my-1">
-              {result.minContributionYears} <span className="text-sm font-sans text-[#94A3B8]">年</span>
+          <div className="card p-6 text-center">
+            <p className="text-xs text-text-muted mb-1">基本养老金最低缴费年限</p>
+            <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono tracking-tight my-1">
+              {result.minContributionYears} <span className="text-sm font-sans text-text-muted font-normal">年</span>
             </p>
-            <p className="text-xs text-[#64748B]">
+            <p className="text-xs text-text-muted">
               {result.minContributionYears > 15 ? '2030年起逐步过渡至20年' : '2030年前保持15年基准'}
             </p>
           </div>
         </div>
 
         {/* Flexible Retirement Card */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-6">
-          <h3 className="font-semibold text-white text-sm sm:text-base mb-4">
+        <div className="card p-6 space-y-4">
+          <h3 className="font-semibold text-text-primary text-sm sm:text-base">
             自愿弹性退休区间（提前与延迟）
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/60 p-4">
+            <div className="rounded-xl border border-border bg-surface-elevated p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-[#10B981]">弹性提前退休（最早）</span>
-                <span className="text-xs text-[#64748B]">需达最低缴费年限</span>
+                <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">弹性提前退休（最早）</span>
+                <span className="text-xs text-text-muted">需达最低缴费年限</span>
               </div>
-              <p className="text-xl font-bold font-mono text-white">
+              <p className="text-xl font-bold font-mono text-text-primary">
                 {result.earliestFlexibleRetirementDate}
               </p>
-              <p className="text-xs text-[#94A3B8] mt-1">
+              <p className="text-xs text-text-muted mt-1">
                 提前时间最长不超过 3 年，且不得早于原法定退休年龄（{result.originalRetirementAge} 周岁）。
               </p>
             </div>
 
-            <div className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/60 p-4">
+            <div className="rounded-xl border border-border bg-surface-elevated p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-[#38BDF8]">弹性延迟退休（最晚）</span>
-                <span className="text-xs text-[#64748B]">需用人单位协商同意</span>
+                <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">弹性延迟退休（最晚）</span>
+                <span className="text-xs text-text-muted">需用人单位协商同意</span>
               </div>
-              <p className="text-xl font-bold font-mono text-white">
+              <p className="text-xl font-bold font-mono text-text-primary">
                 {result.latestFlexibleRetirementDate}
               </p>
-              <p className="text-xs text-[#94A3B8] mt-1">
+              <p className="text-xs text-text-muted mt-1">
                 达到法定退休年龄后，经与用人单位协商一致，延迟时间最长不超过 3 年。
               </p>
             </div>

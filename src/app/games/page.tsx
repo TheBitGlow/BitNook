@@ -9,7 +9,7 @@ import DynamicIcon from '@/components/common/DynamicIcon'
 import { getAllGames, GameInfo } from '@/config/games'
 import { useI18n } from '@/lib/i18n'
 import { useRecentGames } from '@/lib/storage'
-import { Gamepad2, Sparkles, ArrowRight, History, Play } from 'lucide-react'
+import { ArrowRight, History, Play, Gamepad2, Sparkles } from 'lucide-react'
 
 type GameCategoryFilter = 'all' | 'puzzle' | 'arcade' | 'strategy' | 'card'
 
@@ -47,131 +47,124 @@ export default function GamesPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#090D16] text-slate-100">
+    <div className="flex flex-col min-h-screen bg-canvas text-text-primary">
       <Header />
 
-      <main className="flex-1 py-10 px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Page Header */}
-          <div className="text-center max-w-2xl mx-auto mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/20 bg-blue-500/10 text-blue-400 text-xs font-medium mb-3">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{isZh ? '纯前端解压小游戏 · 零安装即开即玩' : 'Pure Frontend Mini-Games · Zero Install'}</span>
+      <main className="flex-1 py-8 px-4 sm:px-6">
+        <div className="max-w-[1200px] mx-auto">
+          {/* Top Game Portal Hero Header */}
+          <div className="mb-7 pb-5 border-b border-border/70">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase text-accent mb-1.5">
+              <Gamepad2 className="w-3.5 h-3.5" />
+              <span>MINI GAME PORTAL</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-2.5">
-              {isZh ? '游戏大厅' : 'Games Hall'}
+            <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary tracking-tight">
+              {isZh ? '经典小憩 · 8 款解压益智游戏' : 'Classic Break Games · 8 Mini-Games'}
             </h1>
-            <p className="text-sm text-slate-400 leading-relaxed">
+            <p className="text-xs sm:text-sm text-text-secondary mt-1">
               {isZh
-                ? `精选 ${games.length} 款经典休闲益智与策略棋类游戏，支持单人闯关、本地双人对弈与智能 AI。`
-                : `Enjoy ${games.length} classic puzzle and strategy games featuring single player, local PvP, and heuristic AI.`}
+                ? '无需安装、即开即玩的纯前端桌游与策略游戏，在深度工作与编码间隙重拾专注心境。'
+                : 'Lightweight, client-only games designed to reset your focus between tasks.'}
             </p>
           </div>
 
-          <AdSlot slotId="games-top-banner" format="horizontal" />
-
-          {/* Recently Played Shelf */}
+          {/* Continue Playing / Recently Played (If exists) */}
           {recentGameItems.length > 0 && (
-            <div className="mt-8 mb-8 p-5 rounded-2xl border border-[#1E293B] bg-[#0F1523]">
-              <div className="flex items-center justify-between mb-3.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                  <History className="w-4 h-4 text-emerald-400" />
-                  <span>{isZh ? '最近在玩' : 'Recently Played'}</span>
+            <div className="mb-8 p-3.5 rounded-lg border border-border/80 bg-surface shadow-subtle">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-text-primary">
+                  <History className="w-3.5 h-3.5 text-success" />
+                  <span>{isZh ? '最近在玩' : 'Continue Playing'}</span>
                 </div>
-                <span className="text-[11px] text-slate-500 font-mono">
-                  {isZh ? `${recentGameItems.length} 款记录` : `${recentGameItems.length} games`}
+                <span className="text-[11px] text-text-muted font-mono">
+                  {recentGameItems.length} {isZh ? '款记录' : 'games'}
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {recentGameItems.map((game) => (
                   <Link
                     key={`recent-${game.slug}`}
                     href={game.href}
-                    className="group flex items-center gap-3 p-3 rounded-xl border border-[#1E293B] bg-[#141C2E] hover:border-slate-700 hover:bg-[#1A243B] transition"
+                    className="group flex items-center gap-2.5 p-2 rounded-lg border border-border/70 bg-surface-secondary/60 hover:bg-surface-secondary hover:border-border transition-colors"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-[#090D16] border border-[#1E293B] flex items-center justify-center shrink-0 text-blue-400 group-hover:scale-105 transition-transform">
+                    <div className="w-8 h-8 rounded-md bg-surface border border-border/60 flex items-center justify-center shrink-0 text-accent group-hover:bg-accent-subtle/50 transition-colors">
                       <DynamicIcon name={game.iconName} className="w-4 h-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xs font-semibold text-white group-hover:text-blue-400 transition-colors truncate">
+                      <h4 className="text-xs font-semibold text-text-primary group-hover:text-accent transition-colors truncate">
                         {isZh ? game.name : game.nameEn}
                       </h4>
-                      <span className="text-[10px] text-slate-400 capitalize">
+                      <span className="text-[10px] text-text-muted capitalize font-mono">
                         {game.category}
                       </span>
                     </div>
-                    <Play className="w-3 h-3 text-slate-500 group-hover:text-emerald-400 transition-colors shrink-0" />
+                    <Play className="w-3.5 h-3.5 text-text-muted group-hover:text-accent shrink-0" />
                   </Link>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Category Filter Pills */}
-          <div className="my-6 flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
-            {(['all', 'puzzle', 'arcade', 'strategy', 'card'] as GameCategoryFilter[]).map((cat) => {
-              const isActive = selectedCategory === cat
-              const count = cat === 'all' ? games.length : games.filter((g) => g.category === cat).length
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition flex items-center gap-1.5 ${
-                    isActive
-                      ? 'bg-blue-600 text-white shadow-sm font-semibold'
-                      : 'bg-[#0F1523] border border-[#1E293B] text-slate-400 hover:text-white hover:bg-[#141C2E]'
-                  }`}
-                >
-                  <span>{isZh ? categoryLabels[cat].zh : categoryLabels[cat].en}</span>
-                  <span className="text-[10px] opacity-75 font-mono">({count})</span>
-                </button>
-              )
-            })}
+          {/* Category Filter Chips */}
+          <div className="flex items-center gap-1.5 mb-6 overflow-x-auto pb-1 scrollbar-none">
+            {(Object.keys(categoryLabels) as GameCategoryFilter[]).map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                  selectedCategory === cat
+                    ? 'bg-accent text-white font-semibold shadow-subtle'
+                    : 'bg-surface border border-border/80 text-text-secondary hover:text-text-primary hover:bg-surface-secondary/70'
+                }`}
+              >
+                {isZh ? categoryLabels[cat].zh : categoryLabels[cat].en}
+              </button>
+            ))}
           </div>
 
-          {/* Games Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* 8 Modern Game Portal Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
             {filteredGames.map((game) => (
               <Link
                 key={game.slug}
                 href={game.href}
-                className="group rounded-2xl border border-[#1E293B] bg-[#0F1523] p-5 hover:border-slate-700 hover:bg-[#141C2E] transition-all flex flex-col justify-between shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="group rounded-xl border border-border/80 bg-surface p-4 shadow-subtle hover:border-border-hover hover:bg-surface-secondary/40 transition-colors flex flex-col justify-between"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-[#141C2E] border border-[#1E293B] flex items-center justify-center text-blue-400 group-hover:scale-105 group-hover:text-white transition-all">
-                      <DynamicIcon name={game.iconName} className="w-6 h-6" />
+                  <div className="flex items-start justify-between gap-2.5 mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-surface-secondary/80 border border-border/70 flex items-center justify-center text-accent group-hover:bg-accent-subtle/50 transition-colors">
+                      <DynamicIcon name={game.iconName} className="w-5 h-5" />
                     </div>
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#141C2E] text-slate-400 border border-[#1E293B] font-mono">
+                    <span className="font-mono text-[10px] uppercase text-text-muted px-1.5 py-0.5 rounded bg-surface-secondary border border-border/60">
                       {game.category}
                     </span>
                   </div>
 
-                  <h3 className="font-bold text-white group-hover:text-blue-400 transition-colors text-sm mb-1.5">
+                  <h3 className="text-sm font-semibold text-text-primary group-hover:text-accent transition-colors mb-1">
                     {isZh ? game.name : game.nameEn}
                   </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
+                  <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">
                     {isZh ? game.description : game.descriptionEn}
                   </p>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-[#1E293B] flex items-center justify-between text-xs text-slate-500">
-                  <span className="inline-flex items-center gap-1.5 text-slate-400 font-medium text-[11px]">
-                    <Gamepad2 className="w-3.5 h-3.5 text-blue-400" />
-                    <span>{isZh ? '即点即玩' : 'Play Now'}</span>
+                <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between text-xs text-text-muted">
+                  <span className="text-[11px] font-mono text-text-muted">
+                    {isZh ? '免下载 · 即开即玩' : 'Instant Web'}
                   </span>
-                  <span className="text-slate-400 group-hover:text-blue-400 font-medium inline-flex items-center gap-1 text-[11px] transition-colors">
-                    <span>{isZh ? '进入' : 'Launch'}</span>
-                    <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  <span className="text-text-muted group-hover:text-accent font-medium inline-flex items-center gap-1 transition-colors">
+                    <span>{isZh ? '开始游戏' : 'Play'}</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                   </span>
                 </div>
               </Link>
             ))}
           </div>
 
-          <div className="mt-14">
-            <AdSlot slotId="games-bottom-banner" format="horizontal" />
+          {/* Bottom Ad Slot */}
+          <div className="pt-2">
+            <AdSlot slotId="games-hub-bottom" format="horizontal" />
           </div>
         </div>
       </main>

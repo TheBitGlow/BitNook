@@ -1,14 +1,22 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
-import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
-import AdSlot from '@/components/ads/AdSlot'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import GameLayout from '@/components/games/GameLayout'
+import { useRecentGames } from '@/lib/storage'
+import { trackEvent } from '@/lib/analytics'
+import {
+  Difficulty,
+  MINESWEEPER_CONFIGS,
+  CellData,
+  createEmptyGrid,
+  populateMines,
+  revealCell,
+  checkMinesweeperWin,
+} from '@/core/games/minesweeper'
 import {
   Bomb,
   Flag,
   RotateCcw,
-  Trophy,
   Clock,
   Smile,
   Frown,
@@ -16,469 +24,283 @@ import {
   Sparkles,
 } from 'lucide-react'
 
-type Difficulty = 'easy' | 'medium' | 'hard'
-
-interface DiffConfig {
-  rows: number
-  cols: number
-  mines: number
-  name: string
-}
-
-const CONFIGS: Record<Difficulty, DiffConfig> = {
-  easy: { rows: 9, cols: 9, mines: 10, name: '初级 (9×9 · 10雷)' },
-  medium: { rows: 16, cols: 16, mines: 40, name: '中级 (16×16 · 40雷)' },
-  hard: { rows: 16, cols: 30, mines: 99, name: '高级 (16×30 · 99雷)' },
-}
-
-interface CellData {
-  r: number
-  c: number
-  isMine: boolean
-  isRevealed: boolean
-  isFlagged: boolean
-  neighborMines: number
-  isExploded?: boolean
-  isFalseFlag?: boolean
-}
-
 const NUMBER_COLORS = [
   '',
-  'text-blue-400 font-bold',
-  'text-emerald-400 font-bold',
-  'text-rose-400 font-bold',
-  'text-purple-400 font-bold',
-  'text-amber-400 font-bold',
-  'text-cyan-400 font-bold',
-  'text-pink-400 font-bold',
-  'text-slate-200 font-bold',
+  'text-blue-600 dark:text-blue-400 font-bold',
+  'text-emerald-600 dark:text-emerald-400 font-bold',
+  'text-rose-600 dark:text-rose-400 font-bold',
+  'text-purple-600 dark:text-purple-400 font-bold',
+  'text-amber-600 dark:text-amber-400 font-bold',
+  'text-cyan-600 dark:text-cyan-400 font-bold',
+  'text-pink-600 dark:text-pink-400 font-bold',
+  'text-zinc-600 dark:text-zinc-300 font-bold',
 ]
 
-function createEmptyGrid(rows: number, cols: number): CellData[][] {
-  const grid: CellData[][] = []
-  for (let r = 0; r < rows; r++) {
-    grid[r] = []
-    for (let c = 0; c < cols; c++) {
-      grid[r][c] = {
-        r,
-        c,
-        isMine: false,
-        isRevealed: false,
-        isFlagged: false,
-        neighborMines: 0,
-      }
-    }
-  }
-  return grid
-}
-
-// Populate mines ensuring 3x3 surrounding the first click is 100% mine-free
-function populateMinesAndNumbers(
-  initialGrid: CellData[][],
-  firstR: number,
-  firstC: number,
-  rows: number,
-  cols: number,
-  totalMines: number
-): CellData[][] {
-  const grid = initialGrid.map((row) => row.map((cell) => ({ ...cell })))
-
-  // Collect valid candidate spots (excluding 3x3 around first click)
-  const candidates: [number, number][] = []
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const isProtected = Math.abs(r - firstR) <= 1 && Math.abs(c - firstC) <= 1
-      if (!isProtected) {
-        candidates.push([r, c])
-      }
-    }
-  }
-
-  // Shuffle candidates
-  for (let i = candidates.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[candidates[i], candidates[j]] = [candidates[j], candidates[i]]
-  }
-
-  // Place mines
-  const placedMines = candidates.slice(0, totalMines)
-  placedMines.forEach(([r, c]) => {
-    grid[r][c].isMine = true
-  })
-
-  // Calculate neighbor counts
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (!grid[r][c].isMine) {
-        let count = 0
-        for (let dr = -1; dr <= 1; dr++) {
-          for (let dc = -1; dc <= 1; dc++) {
-            const nr = r + dr
-            const nc = c + dc
-            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc].isMine) {
-              count++
-            }
-          }
-        }
-        grid[r][c].neighborMines = count
-      }
-    }
-  }
-
-  return grid
-}
-
 export default function MinesweeperPage() {
+  const { recordRecentGame } = useRecentGames()
+
+  useEffect(() => {
+    recordRecentGame('minesweeper')
+    trackEvent('game_start', { gameSlug: 'minesweeper' })
+  }, [recordRecentGame])
+
   const [diff, setDiff] = useState<Difficulty>('easy')
-  const config = CONFIGS[diff]
+  const config = MINESWEEPER_CONFIGS[diff]
 
-  // Board state
-  const [board, setBoard] = useState<CellData[][]>(() => createEmptyGrid(9, 9))
-  const [isFirstClick, setIsFirstClick] = useState(true)
-  const [isFlagMode, setIsFlagMode] = useState(false) // Mobile tap toggle
-
-  // Game state
+  const [board, setBoard] = useState<CellData[][]>(() => createEmptyGrid(config.rows, config.cols))
   const [status, setStatus] = useState<'idle' | 'playing' | 'won' | 'lost'>('idle')
   const [timerSec, setTimerSec] = useState(0)
-  const [bestTimes, setBestTimes] = useState<Record<Difficulty, number | null>>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('bitnook_minesweeper_records')
-        if (saved) return JSON.parse(saved)
-      } catch {
-        // ignore
-      }
-    }
-    return { easy: null, medium: null, hard: null }
-  })
+  const [isFlagMode, setIsFlagMode] = useState(false) // Mobile tap toggle
 
-  // Timer tick
-  useEffect(() => {
-    if (status !== 'playing') return
-    const interval = setInterval(() => {
-      setTimerSec((t) => t + 1)
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [status])
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Count flags
-  const flagsUsed = useMemo(() => {
+  const flagsCount = useMemo(() => {
     let count = 0
-    for (let r = 0; r < board.length; r++) {
-      for (let c = 0; c < board[r].length; c++) {
-        if (board[r][c].isFlagged) count++
+    for (const row of board) {
+      for (const cell of row) {
+        if (cell.isFlagged) count++
       }
     }
     return count
   }, [board])
 
-  const flagsLeft = Math.max(0, config.mines - flagsUsed)
+  const flagsLeft = config.mines - flagsCount
 
-  // Reset / Change difficulty
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }, [])
+
+  const startTimer = useCallback(() => {
+    stopTimer()
+    timerRef.current = setInterval(() => {
+      setTimerSec(s => Math.min(999, s + 1))
+    }, 1000)
+  }, [stopTimer])
+
+  useEffect(() => {
+    return () => stopTimer()
+  }, [stopTimer])
+
   const startNewGame = useCallback((targetDiff?: Difficulty) => {
-    const nextDiff = targetDiff || diff
-    setDiff(nextDiff)
-    const nextCfg = CONFIGS[nextDiff]
-    setBoard(createEmptyGrid(nextCfg.rows, nextCfg.cols))
-    setIsFirstClick(true)
+    stopTimer()
+    const d = targetDiff || diff
+    setDiff(d)
+    const conf = MINESWEEPER_CONFIGS[d]
+    setBoard(createEmptyGrid(conf.rows, conf.cols))
     setStatus('idle')
     setTimerSec(0)
-  }, [diff])
+  }, [diff, stopTimer])
 
-  // Flood fill cascade revealing blanks
-  const floodReveal = (grid: CellData[][], startR: number, startC: number) => {
-    const rows = config.rows
-    const cols = config.cols
-    const queue: [number, number][] = [[startR, startC]]
-    grid[startR][startC].isRevealed = true
-
-    while (queue.length > 0) {
-      const [r, c] = queue.shift()!
-      if (grid[r][c].neighborMines === 0) {
-        for (let dr = -1; dr <= 1; dr++) {
-          for (let dc = -1; dc <= 1; dc++) {
-            const nr = r + dr
-            const nc = c + dc
-            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-              const neighbor = grid[nr][nc]
-              if (!neighbor.isRevealed && !neighbor.isFlagged && !neighbor.isMine) {
-                neighbor.isRevealed = true
-                if (neighbor.neighborMines === 0) {
-                  queue.push([nr, nc])
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Check victory condition
-  const checkVictory = (grid: CellData[][]) => {
-    let unrevealedNonMines = 0
-    for (let r = 0; r < config.rows; r++) {
-      for (let c = 0; c < config.cols; c++) {
-        if (!grid[r][c].isMine && !grid[r][c].isRevealed) {
-          unrevealedNonMines++
-        }
-      }
-    }
-
-    if (unrevealedNonMines === 0) {
-      setStatus('won')
-      // Save best record
-      setBestTimes((prev) => {
-        const currentBest = prev[diff]
-        if (currentBest === null || timerSec < currentBest) {
-          const updated = { ...prev, [diff]: timerSec }
-          try {
-            localStorage.setItem('bitnook_minesweeper_records', JSON.stringify(updated))
-          } catch {
-            // ignore
-          }
-          return updated
-        }
-        return prev
-      })
-    }
-  }
-
-  // Click on cell
   const handleCellClick = (r: number, c: number) => {
     if (status === 'won' || status === 'lost') return
 
-    // If mobile flag mode is active, toggle flag instead
+    // Mobile flag toggle mode
     if (isFlagMode) {
       handleToggleFlag(r, c)
       return
     }
 
-    let activeGrid = board
-    if (isFirstClick) {
-      activeGrid = populateMinesAndNumbers(board, r, c, config.rows, config.cols, config.mines)
-      setIsFirstClick(false)
+    if (board[r][c].isFlagged || board[r][c].isRevealed) return
+
+    let currentGrid = board
+
+    // First click: guaranteed safe 3x3 surrounding
+    if (status === 'idle') {
+      currentGrid = populateMines(board, config.rows, config.cols, config.mines, r, c)
       setStatus('playing')
+      startTimer()
     }
 
-    const cell = activeGrid[r][c]
-    if (cell.isRevealed || cell.isFlagged) return
+    const { grid: nextGrid, hitMine } = revealCell(currentGrid, config.rows, config.cols, r, c)
 
-    const newGrid = activeGrid.map((row) => row.map((item) => ({ ...item })))
-
-    // Hit a mine!
-    if (newGrid[r][c].isMine) {
-      newGrid[r][c].isRevealed = true
-      newGrid[r][c].isExploded = true
-
-      // Reveal all mines and flag errors
-      for (let row = 0; row < config.rows; row++) {
-        for (let col = 0; col < config.cols; col++) {
-          if (newGrid[row][col].isMine) {
-            newGrid[row][col].isRevealed = true
-          } else if (newGrid[row][col].isFlagged && !newGrid[row][col].isMine) {
-            newGrid[row][col].isFalseFlag = true
-          }
-        }
-      }
-
-      setBoard(newGrid)
+    if (hitMine) {
+      stopTimer()
       setStatus('lost')
+      // Reveal all mines
+      const revealedLosingGrid = nextGrid.map(row =>
+        row.map(cell => ({
+          ...cell,
+          isRevealed: cell.isMine ? true : cell.isRevealed,
+        }))
+      )
+      setBoard(revealedLosingGrid)
       return
     }
 
-    // Non-mine click
-    floodReveal(newGrid, r, c)
-    setBoard(newGrid)
-    checkVictory(newGrid)
+    setBoard(nextGrid)
+
+    if (checkMinesweeperWin(nextGrid, config.rows, config.cols)) {
+      stopTimer()
+      setStatus('won')
+    }
   }
 
-  // Right-click toggle flag
   const handleToggleFlag = (r: number, c: number, e?: React.MouseEvent) => {
     if (e) e.preventDefault()
     if (status === 'won' || status === 'lost') return
     if (board[r][c].isRevealed) return
 
-    // Prevent placing flag if already reached limit
     if (!board[r][c].isFlagged && flagsLeft <= 0) return
 
-    const newGrid = board.map((row) => row.map((item) => ({ ...item })))
+    const newGrid = board.map(row => row.map(item => ({ ...item })))
     newGrid[r][c].isFlagged = !newGrid[r][c].isFlagged
     setBoard(newGrid)
   }
 
-  return (
-    <div className="min-h-screen flex flex-col bg-[#050811] text-slate-100">
-      <Header />
+  const instructions = [
+    { title: '左键点击', desc: '翻开指定方格。首次点击的 3×3 九宫格区域 100% 确保无雷。' },
+    { title: '右键插旗', desc: '插上或取消避雷警示旗 🚩。移动端可通过下方触控模式按钮自由切换。' },
+    { title: '数字提示', desc: '方格内的数字代表其四周相邻 8 个格子中存在的地雷总数。' },
+  ]
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8">
-        {/* Header & Difficulty */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <span className="p-1.5 rounded-xl bg-rose-500/20 text-rose-400">💣</span>
-              <span>经典扫雷 (Minesweeper)</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              初次点击九宫格绝对安全 · 空白级联展开 · 旗帜计数保护 · 本地历史最佳记录
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
-              <button
-                key={d}
-                onClick={() => startNewGame(d)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border ${
-                  diff === d
-                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
-                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
-                }`}
-              >
-                {d === 'easy' ? '初级' : d === 'medium' ? '中级' : '高级'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Game Container */}
-        <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-2xl flex flex-col items-center">
-          {/* Top Status Bar */}
-          <div className="w-full max-w-xl flex items-center justify-between p-3.5 mb-6 rounded-xl bg-slate-950 border border-slate-800/80 font-mono text-sm">
-            {/* Flags left */}
-            <div className="flex items-center gap-2 text-rose-400">
-              <Flag className="w-4 h-4" />
-              <span className="text-lg font-bold">{flagsLeft.toString().padStart(3, '0')}</span>
-            </div>
-
-            {/* Restart Face Button */}
-            <button
-              onClick={() => startNewGame()}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition shadow-sm"
-              title="重置棋盘"
-            >
-              {status === 'won' ? (
-                <Sparkles className="w-5 h-5 text-amber-400" />
-              ) : status === 'lost' ? (
-                <Frown className="w-5 h-5 text-rose-400" />
-              ) : (
-                <Smile className="w-5 h-5 text-emerald-400" />
-              )}
-            </button>
-
-            {/* Timer */}
-            <div className="flex items-center gap-2 text-indigo-400">
-              <Clock className="w-4 h-4" />
-              <span className="text-lg font-bold">
-                {Math.min(999, timerSec).toString().padStart(3, '0')}
-              </span>
-            </div>
-          </div>
-
-          {/* Board Grid */}
-          <div className="overflow-x-auto max-w-full pb-4">
-            <div
-              className="grid gap-[2px] bg-slate-800 p-2 rounded-xl border border-slate-700 select-none shadow-inner"
-              style={{
-                gridTemplateColumns: `repeat(${config.cols}, 28px)`,
-                gridTemplateRows: `repeat(${config.rows}, 28px)`,
-              }}
-              onContextMenu={(e) => e.preventDefault()}
-            >
-              {board.map((row, r) =>
-                row.map((cell, c) => {
-                  return (
-                    <button
-                      key={`${r}-${c}`}
-                      onClick={() => handleCellClick(r, c)}
-                      onContextMenu={(e) => handleToggleFlag(r, c, e)}
-                      className={`w-7 h-7 rounded-[3px] text-xs font-mono font-bold flex items-center justify-center transition-colors ${
-                        cell.isRevealed
-                          ? cell.isExploded
-                            ? 'bg-rose-600 text-white animate-pulse'
-                            : cell.isMine
-                            ? 'bg-rose-950 text-rose-400'
-                            : 'bg-slate-950/80 border border-slate-900/60'
-                          : 'bg-slate-700/80 hover:bg-slate-600 shadow-sm border-t border-l border-slate-600 border-b-2 border-r-2 border-slate-900 active:border-none'
-                      }`}
-                    >
-                      {cell.isRevealed ? (
-                        cell.isMine ? (
-                          <Bomb className="w-4 h-4" />
-                        ) : cell.neighborMines > 0 ? (
-                          <span className={NUMBER_COLORS[cell.neighborMines]}>{cell.neighborMines}</span>
-                        ) : null
-                      ) : cell.isFlagged ? (
-                        <Flag className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-                      ) : null}
-                    </button>
-                  )
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Mobile Tap Mode Toggle */}
-          <div className="mt-4 flex items-center gap-3 sm:hidden">
-            <button
-              onClick={() => setIsFlagMode(!isFlagMode)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition border ${
-                isFlagMode
-                  ? 'bg-rose-600 text-white border-rose-500 shadow-md'
-                  : 'bg-slate-800 text-slate-300 border-slate-700'
-              }`}
-            >
-              <Flag className="w-4 h-4" />
-              <span>{isFlagMode ? '触控模式: 插旗 🚩' : '触控模式: 翻开 ⛏️'}</span>
-            </button>
-          </div>
-
-          {/* Results Modal / Notification */}
-          {status === 'won' && (
-            <div className="mt-6 p-4 rounded-xl bg-emerald-950/40 border border-emerald-600/60 text-center space-y-1">
-              <div className="flex items-center justify-center gap-2 text-emerald-400 font-bold text-sm">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>恭喜通关！耗时: {timerSec} 秒</span>
-              </div>
-              <p className="text-xs text-slate-300">成功清除所有地雷，技术精湛！</p>
-            </div>
-          )}
-
-          {status === 'lost' && (
-            <div className="mt-6 p-4 rounded-xl bg-rose-950/40 border border-rose-600/60 text-center space-y-1">
-              <div className="flex items-center justify-center gap-2 text-rose-400 font-bold text-sm">
-                <Bomb className="w-4 h-4" />
-                <span>触雷遗憾失败！</span>
-              </div>
-              <p className="text-xs text-slate-300">点击笑脸重新开始，再接再厉！</p>
-            </div>
-          )}
-
-          {/* Best Record Badges */}
-          <div className="mt-8 flex flex-wrap justify-center gap-6 text-xs text-slate-400 border-t border-slate-800 pt-6 w-full">
-            <div className="flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-amber-400" />
-              <span>初级最佳纪录: </span>
-              <strong className="text-white font-mono">{bestTimes.easy ? `${bestTimes.easy}s` : '暂无'}</strong>
-            </div>
-            <div className="flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-amber-400" />
-              <span>中级最佳纪录: </span>
-              <strong className="text-white font-mono">{bestTimes.medium ? `${bestTimes.medium}s` : '暂无'}</strong>
-            </div>
-            <div className="flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-amber-400" />
-              <span>高级最佳纪录: </span>
-              <strong className="text-white font-mono">{bestTimes.hard ? `${bestTimes.hard}s` : '暂无'}</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Non-intrusive AdSlot */}
-        <AdSlot placement="tool-bottom" className="mt-8" />
-      </main>
-
-      <Footer />
+  const controls = (
+    <div className="flex items-center gap-1.5 sm:gap-2">
+      {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
+        <button
+          key={d}
+          onClick={() => startNewGame(d)}
+          className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+            diff === d
+              ? 'bg-accent text-white shadow-subtle'
+              : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
+          }`}
+        >
+          {d === 'easy' ? '初级' : d === 'medium' ? '中级' : '高级'}
+        </button>
+      ))}
+      <button
+        onClick={() => startNewGame()}
+        className="px-3 py-1.5 rounded-md border border-border bg-surface text-text-primary hover:bg-surface-secondary text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+        title="重置当前难度"
+      >
+        <RotateCcw className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">重置</span>
+      </button>
     </div>
+  )
+
+  return (
+    <GameLayout
+      title="经典扫雷"
+      titleEn={`Minesweeper (${config.name})`}
+      categoryName="益智解谜"
+      description="首击九宫格绝对安全算法，支持经典初中高三级难度、数字级联展开与触控插旗切换。"
+      controlsNode={controls}
+      instructions={instructions}
+    >
+      <div className="w-full flex flex-col items-center select-none max-w-4xl">
+        {/* Status Head Display */}
+        <div className="w-full max-w-md flex items-center justify-between p-3.5 mb-5 rounded-xl border border-border bg-surface-secondary/50 font-mono text-sm">
+          {/* Flags remaining */}
+          <div className="flex items-center gap-2 text-danger">
+            <Flag className="w-4 h-4 fill-danger" />
+            <span className="text-lg font-bold">{flagsLeft.toString().padStart(3, '0')}</span>
+          </div>
+
+          {/* Reset Face */}
+          <button
+            onClick={() => startNewGame()}
+            className="p-2 rounded-lg bg-surface border border-border hover:bg-surface-secondary text-text-primary transition-colors shadow-xs cursor-pointer"
+            title="重新开局"
+          >
+            {status === 'won' ? (
+              <Sparkles className="w-5 h-5 text-warning" />
+            ) : status === 'lost' ? (
+              <Frown className="w-5 h-5 text-danger" />
+            ) : (
+              <Smile className="w-5 h-5 text-success" />
+            )}
+          </button>
+
+          {/* Seconds elapsed */}
+          <div className="flex items-center gap-2 text-accent">
+            <Clock className="w-4 h-4" />
+            <span className="text-lg font-bold">
+              {Math.min(999, timerSec).toString().padStart(3, '0')}
+            </span>
+          </div>
+        </div>
+
+        {/* Board Surface Grid */}
+        <div className="overflow-x-auto max-w-full pb-2">
+          <div
+            className="grid gap-[2px] p-2.5 rounded-xl border border-border bg-surface-secondary/80 select-none shadow-sm"
+            style={{
+              gridTemplateColumns: `repeat(${config.cols}, 28px)`,
+              gridTemplateRows: `repeat(${config.rows}, 28px)`,
+            }}
+            onContextMenu={e => e.preventDefault()}
+          >
+            {board.map((row, r) =>
+              row.map((cell, c) => (
+                <button
+                  key={`${r}-${c}`}
+                  onClick={() => handleCellClick(r, c)}
+                  onContextMenu={e => handleToggleFlag(r, c, e)}
+                  className={`w-7 h-7 rounded-[3px] text-xs font-mono font-bold flex items-center justify-center transition-colors cursor-pointer ${
+                    cell.isRevealed
+                      ? cell.isExploded
+                        ? 'bg-danger text-white animate-pulse'
+                        : cell.isMine
+                        ? 'bg-danger/20 text-danger'
+                        : 'bg-surface border border-border/60 shadow-xs'
+                      : 'bg-surface-secondary border border-border/80 hover:bg-surface-hover shadow-xs active:scale-95'
+                  }`}
+                >
+                  {cell.isRevealed ? (
+                    cell.isMine ? (
+                      <Bomb className="w-4 h-4" />
+                    ) : cell.neighborMines > 0 ? (
+                      <span className={NUMBER_COLORS[cell.neighborMines]}>
+                        {cell.neighborMines}
+                      </span>
+                    ) : null
+                  ) : cell.isFlagged ? (
+                    <Flag className="w-3.5 h-3.5 text-danger fill-danger" />
+                  ) : null}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Flag Mode Toggle Button */}
+        <div className="mt-4 flex items-center gap-3 sm:hidden">
+          <button
+            onClick={() => setIsFlagMode(!isFlagMode)}
+            className={`px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer ${
+              isFlagMode
+                ? 'bg-danger text-white shadow-subtle'
+                : 'bg-surface border border-border text-text-primary'
+            }`}
+          >
+            <Flag className="w-3.5 h-3.5" />
+            <span>{isFlagMode ? '触控：插旗标记 🚩' : '触控：翻开探雷 ⛏️'}</span>
+          </button>
+        </div>
+
+        {/* Status notification */}
+        {status === 'won' && (
+          <div className="mt-5 p-4 rounded-xl bg-success-subtle border border-success/30 text-center max-w-sm w-full animate-in fade-in duration-150">
+            <div className="flex items-center justify-center gap-2 text-success font-bold text-sm">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>恭喜排雷通关！总耗时: {timerSec} 秒</span>
+            </div>
+          </div>
+        )}
+        {status === 'lost' && (
+          <div className="mt-5 p-4 rounded-xl bg-danger-subtle border border-danger/30 text-center max-w-sm w-full animate-in fade-in duration-150">
+            <div className="flex items-center justify-center gap-2 text-danger font-bold text-sm">
+              <Bomb className="w-4 h-4" />
+              <span>触雷爆炸！再接再厉</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </GameLayout>
   )
 }

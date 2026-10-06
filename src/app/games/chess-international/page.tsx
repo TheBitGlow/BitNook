@@ -1,27 +1,26 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
-import AdSlot from '@/components/ads/AdSlot'
-import { Crown, RotateCcw, Bot, User, Trophy, Undo2, AlertTriangle } from 'lucide-react'
+import GameLayout from '@/components/games/GameLayout'
+import { useRecentGames } from '@/lib/storage'
+import { trackEvent } from '@/lib/analytics'
+import {
+  INITIAL_CHESS_BOARD,
+  ChessBoard,
+  ChessColor,
+  ChessPieceType,
+  Pos,
+  CastlingRights,
+  ChessMove,
+  cloneChessBoard,
+  isChessKingInCheck,
+  getLegalChessMoves,
+  executeMoveSimulation,
+  getChessGameStatus,
+} from '@/core/games/international-chess'
+import { RotateCcw, Undo2, Trophy, Bot, User, AlertTriangle } from 'lucide-react'
 
-type Piece = { type: string; color: 'white' | 'black' }
-type Board = (Piece | null)[][]
-type Pos = { r: number; c: number }
-
-const INITIAL_BOARD: Board = [
-  [{ type: 'r', color: 'black' }, { type: 'n', color: 'black' }, { type: 'b', color: 'black' }, { type: 'q', color: 'black' }, { type: 'k', color: 'black' }, { type: 'b', color: 'black' }, { type: 'n', color: 'black' }, { type: 'r', color: 'black' }],
-  Array(8).fill(null).map(() => ({ type: 'p', color: 'black' })),
-  Array(8).fill(null),
-  Array(8).fill(null),
-  Array(8).fill(null),
-  Array(8).fill(null),
-  Array(8).fill(null).map(() => ({ type: 'p', color: 'white' })),
-  [{ type: 'r', color: 'white' }, { type: 'n', color: 'white' }, { type: 'b', color: 'white' }, { type: 'q', color: 'white' }, { type: 'k', color: 'white' }, { type: 'b', color: 'white' }, { type: 'n', color: 'white' }, { type: 'r', color: 'white' }],
-]
-
-const PIECE_SYMBOLS: { [key: string]: { white: string; black: string } } = {
+const PIECE_SYMBOLS: Record<ChessPieceType, { white: string; black: string }> = {
   k: { white: '♔', black: '♚' },
   q: { white: '♕', black: '♛' },
   r: { white: '♖', black: '♜' },
@@ -30,404 +29,150 @@ const PIECE_SYMBOLS: { [key: string]: { white: string; black: string } } = {
   p: { white: '♙', black: '♟' },
 }
 
-const PIECE_VALUES: Record<string, number> = {
-  p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000
+const PIECE_VALUES: Record<ChessPieceType, number> = {
+  p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000,
 }
 
-const PAWN_TABLE = [
-  [0, 0, 0, 0, 0, 0, 0, 0],
-  [50, 50, 50, 50, 50, 50, 50, 50],
-  [10, 10, 20, 30, 30, 20, 10, 10],
-  [5, 5, 10, 25, 25, 10, 5, 5],
-  [0, 0, 0, 20, 20, 0, 0, 0],
-  [5, -5, -10, 0, 0, -10, -5, 5],
-  [5, 10, 10, -20, -20, 10, 10, 5],
-  [0, 0, 0, 0, 0, 0, 0, 0]
-]
+const AI_DEPTH = { easy: 1, medium: 2, hard: 3 }
 
-const KNIGHT_TABLE = [
-  [-50, -40, -30, -30, -30, -30, -40, -50],
-  [-40, -20, 0, 0, 0, 0, -20, -40],
-  [-30, 0, 10, 15, 15, 10, 0, -30],
-  [-30, 5, 15, 20, 20, 15, 5, -30],
-  [-30, 0, 15, 20, 20, 15, 0, -30],
-  [-30, 5, 10, 15, 15, 10, 5, -30],
-  [-40, -20, 0, 5, 5, 0, -20, -40],
-  [-50, -40, -30, -30, -30, -30, -40, -50]
-]
-
-const BISHOP_TABLE = [
-  [-20, -10, -10, -10, -10, -10, -10, -20],
-  [-10, 0, 0, 0, 0, 0, 0, -10],
-  [-10, 0, 5, 10, 10, 5, 0, -10],
-  [-10, 5, 5, 10, 10, 5, 5, -10],
-  [-10, 0, 10, 10, 10, 10, 0, -10],
-  [-10, 10, 10, 10, 10, 10, 10, -10],
-  [-10, 5, 0, 0, 0, 0, 5, -10],
-  [-20, -10, -10, -10, -10, -10, -10, -20]
-]
-
-const ROOK_TABLE = [
-  [0, 0, 0, 0, 0, 0, 0, 0],
-  [5, 10, 10, 10, 10, 10, 10, 5],
-  [-5, 0, 0, 0, 0, 0, 0, -5],
-  [-5, 0, 0, 0, 0, 0, 0, -5],
-  [-5, 0, 0, 0, 0, 0, 0, -5],
-  [-5, 0, 0, 0, 0, 0, 0, -5],
-  [-5, 0, 0, 0, 0, 0, 0, -5],
-  [0, 0, 0, 5, 5, 0, 0, 0]
-]
-
-const QUEEN_TABLE = [
-  [-20, -10, -10, -5, -5, -10, -10, -20],
-  [-10, 0, 0, 0, 0, 0, 0, -10],
-  [-10, 0, 5, 5, 5, 5, 0, -10],
-  [-5, 0, 5, 5, 5, 5, 0, -5],
-  [0, 0, 5, 5, 5, 5, 0, -5],
-  [-10, 5, 5, 5, 5, 5, 0, -10],
-  [-10, 0, 5, 0, 0, 0, 0, -10],
-  [-20, -10, -10, -5, -5, -10, -10, -20]
-]
-
-const KING_TABLE = [
-  [-30, -40, -40, -50, -50, -40, -40, -30],
-  [-30, -40, -40, -50, -50, -40, -40, -30],
-  [-30, -40, -40, -50, -50, -40, -40, -30],
-  [-30, -40, -40, -50, -50, -40, -40, -30],
-  [-20, -30, -30, -40, -40, -30, -30, -20],
-  [-10, -20, -20, -20, -20, -20, -20, -10],
-  [20, 20, 0, 0, 0, 0, 20, 20],
-  [20, 30, 10, 0, 0, 10, 30, 20]
-]
-
-const AI_DEPTH: Record<string, number> = { easy: 2, medium: 3, hard: 4 }
-
-type Move = { from: Pos; to: Pos; score?: number; promotionType?: string }
-
-function cloneBoard(b: Board): Board {
-  return b.map(r => r.map(p => p ? { ...p } : null))
-}
-
-function isPathClear(b: Board, from: Pos, to: Pos): boolean {
-  const dr = Math.sign(to.r - from.r) || 0
-  const dc = Math.sign(to.c - from.c) || 0
-  let r = from.r + dr, c = from.c + dc
-  while (r !== to.r || c !== to.c) {
-    if (b[r]?.[c]) return false
-    r += dr; c += dc
-  }
-  return true
-}
-
-function getValidMoves(b: Board, color: 'white' | 'black', castling: { whiteKingside: boolean; whiteQueenside: boolean; blackKingside: boolean; blackQueenside: boolean }, enPassant: Pos | null): Move[] {
-  const moves: Move[] = []
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const p = b[r]?.[c]
-      if (!p || p.color !== color) continue
-
-      const addMove = (to: Pos) => {
-        if (!b[to.r]?.[to.c] || b[to.r][to.c]?.color !== color) {
-          moves.push({ from: { r, c }, to })
-        }
-      }
-
-      switch (p.type) {
-        case 'p': {
-          const dir = color === 'white' ? -1 : 1
-          const startRow = color === 'white' ? 6 : 1
-          if (!b[r + dir]?.[c]) {
-            moves.push({ from: { r, c }, to: { r: r + dir, c } })
-            if (r === startRow && !b[r + 2 * dir]?.[c]) {
-              moves.push({ from: { r, c }, to: { r: r + 2 * dir, c } })
-            }
-          }
-          for (const dc of [-1, 1]) {
-            const nc = c + dc, nr = r + dir
-            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && b[nr][nc] && b[nr][nc]?.color !== color) {
-              moves.push({ from: { r, c }, to: { r: nr, c: nc } })
-            }
-            if (enPassant && enPassant.r === nr && enPassant.c === nc) {
-              moves.push({ from: { r, c }, to: { r: nr, c: nc } })
-            }
-          }
-          break
-        }
-        case 'n':
-          for (const [dr, dc] of [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]]) {
-            const nr = r + dr, nc = c + dc
-            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) addMove({ r: nr, c: nc })
-          }
-          break
-        case 'b':
-          for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
-            let nr = r + dr, nc = c + dc
-            while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-              addMove({ r: nr, c: nc })
-              if (b[nr][nc]) break
-              nr += dr; nc += dc
-            }
-          }
-          break
-        case 'r':
-          for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-            let nr = r + dr, nc = c + dc
-            while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-              addMove({ r: nr, c: nc })
-              if (b[nr][nc]) break
-              nr += dr; nc += dc
-            }
-          }
-          break
-        case 'q':
-          for (const [dr, dc] of [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]]) {
-            let nr = r + dr, nc = c + dc
-            while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-              addMove({ r: nr, c: nc })
-              if (b[nr][nc]) break
-              nr += dr; nc += dc
-            }
-          }
-          break
-        case 'k':
-          for (const [dr, dc] of [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]]) {
-            const nr = r + dr, nc = c + dc
-            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) addMove({ r: nr, c: nc })
-          }
-          if (color === 'white' && r === 7 && c === 4) {
-            if (castling.whiteKingside && !b[7][5] && !b[7][6] && b[7][7]?.type === 'r' &&
-                !isSquareAttacked(b, { r: 7, c: 4 }, 'black') && !isSquareAttacked(b, { r: 7, c: 5 }, 'black') && !isSquareAttacked(b, { r: 7, c: 6 }, 'black')) {
-              moves.push({ from: { r: 7, c: 4 }, to: { r: 7, c: 6 } })
-            }
-            if (castling.whiteQueenside && !b[7][3] && !b[7][2] && !b[7][1] && b[7][0]?.type === 'r' &&
-                !isSquareAttacked(b, { r: 7, c: 4 }, 'black') && !isSquareAttacked(b, { r: 7, c: 3 }, 'black') && !isSquareAttacked(b, { r: 7, c: 2 }, 'black')) {
-              moves.push({ from: { r: 7, c: 4 }, to: { r: 7, c: 2 } })
-            }
-          }
-          if (color === 'black' && r === 0 && c === 4) {
-            if (castling.blackKingside && !b[0][5] && !b[0][6] && b[0][7]?.type === 'r' &&
-                !isSquareAttacked(b, { r: 0, c: 4 }, 'white') && !isSquareAttacked(b, { r: 0, c: 5 }, 'white') && !isSquareAttacked(b, { r: 0, c: 6 }, 'white')) {
-              moves.push({ from: { r: 0, c: 4 }, to: { r: 0, c: 6 } })
-            }
-            if (castling.blackQueenside && !b[0][3] && !b[0][2] && !b[0][1] && b[0][0]?.type === 'r' &&
-                !isSquareAttacked(b, { r: 0, c: 4 }, 'white') && !isSquareAttacked(b, { r: 0, c: 3 }, 'white') && !isSquareAttacked(b, { r: 0, c: 2 }, 'white')) {
-              moves.push({ from: { r: 0, c: 4 }, to: { r: 0, c: 2 } })
-            }
-          }
-          break
-      }
-    }
-  }
-  return moves
-}
-
-function isSquareAttacked(b: Board, square: Pos, byColor: 'white' | 'black'): boolean {
-  const pawnDir = byColor === 'white' ? -1 : 1
-  for (const dc of [-1, 1]) {
-    const r = square.r - pawnDir
-    const c = square.c - dc
-    if (r >= 0 && r < 8 && c >= 0 && c < 8 && b[r][c]?.type === 'p' && b[r][c]?.color === byColor) return true
-  }
-
-  for (const [dr, dc] of [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]]) {
-    const r = square.r + dr, c = square.c + dc
-    if (r >= 0 && r < 8 && c >= 0 && c < 8 && b[r][c]?.type === 'n' && b[r][c]?.color === byColor) return true
-  }
-
-  for (const [dr, dc, pieces] of [
-    [-1, 0, ['r', 'q']], [1, 0, ['r', 'q']], [0, -1, ['r', 'q']], [0, 1, ['r', 'q']],
-    [-1, -1, ['b', 'q']], [-1, 1, ['b', 'q']], [1, -1, ['b', 'q']], [1, 1, ['b', 'q']],
-  ] as [number, number, string[]][]) {
-    let r = square.r + dr, c = square.c + dc
-    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
-      const p = b[r][c]
-      if (p) {
-        if (p.color === byColor && pieces.includes(p.type)) return true
-        break
-      }
-      r += dr
-      c += dc
-    }
-  }
-
-  for (const [dr, dc] of [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]]) {
-    const r = square.r + dr, c = square.c + dc
-    if (r >= 0 && r < 8 && c >= 0 && c < 8 && b[r][c]?.type === 'k' && b[r][c]?.color === byColor) return true
-  }
-
-  return false
-}
-
-function isInCheck(b: Board, color: 'white' | 'black'): boolean {
-  let kingPos: Pos | null = null
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      if (b[r][c]?.type === 'k' && b[r][c]?.color === color) {
-        kingPos = { r, c }
-      }
-    }
-  }
-  if (!kingPos) return false
-  const opp = color === 'white' ? 'black' : 'white'
-  return isSquareAttacked(b, kingPos, opp)
-}
-
-function makeMove(b: Board, move: Move, castling: any, enPassant: Pos | null): { board: Board; captured: Piece | null; newCastling: any; newEnPassant: Pos | null; isEnPassant: boolean } {
-  const nb = cloneBoard(b)
-  const piece = nb[move.from.r][move.from.c]
-  const captured = nb[move.to.r][move.to.c]
-  nb[move.to.r][move.to.c] = piece
-  nb[move.from.r][move.from.c] = null
-
-  let isEnPassant = false
-  if (piece?.type === 'p' && enPassant && move.to.r === enPassant.r && move.to.c === enPassant.c) {
-    const captureRow = piece.color === 'white' ? move.to.r + 1 : move.to.r - 1
-    nb[captureRow][move.to.c] = null
-    isEnPassant = true
-  }
-
-  if (piece?.type === 'k' && Math.abs(move.to.c - move.from.c) === 2) {
-    if (move.to.c === 6) {
-      nb[move.from.r][5] = nb[move.from.r][7]
-      nb[move.from.r][7] = null
-    } else if (move.to.c === 2) {
-      nb[move.from.r][3] = nb[move.from.r][0]
-      nb[move.from.r][0] = null
-    }
-  }
-
-  const newCastling = { ...castling }
-  if (piece?.type === 'k') {
-    if (piece.color === 'white') { newCastling.whiteKingside = false; newCastling.whiteQueenside = false }
-    else { newCastling.blackKingside = false; newCastling.blackQueenside = false }
-  }
-  if (piece?.type === 'r') {
-    if (move.from.r === 7 && move.from.c === 7) newCastling.whiteKingside = false
-    if (move.from.r === 7 && move.from.c === 0) newCastling.whiteQueenside = false
-    if (move.from.r === 0 && move.from.c === 7) newCastling.blackKingside = false
-    if (move.from.r === 0 && move.from.c === 0) newCastling.blackQueenside = false
-  }
-
-  let newEnPassant: Pos | null = null
-  if (piece?.type === 'p' && Math.abs(move.to.r - move.from.r) === 2) {
-    newEnPassant = { r: (move.from.r + move.to.r) / 2, c: move.from.c }
-  }
-
-  if (piece?.type === 'p' && (move.to.r === 0 || move.to.r === 7)) {
-    const promoType = move.promotionType || 'q'
-    nb[move.to.r][move.to.c] = { type: promoType, color: piece.color }
-  }
-
-  return { board: nb, captured, newCastling, newEnPassant, isEnPassant }
-}
-
-function getLegalMoves(b: Board, color: 'white' | 'black', castling: any, enPassant: Pos | null): Move[] {
-  return getValidMoves(b, color, castling, enPassant).filter(move => {
-    const { board: nb } = makeMove(b, move, castling, enPassant)
-    return !isInCheck(nb, color)
-  })
-}
-
-function evaluateBoard(b: Board): number {
+function evaluateBoard(b: ChessBoard): number {
   let score = 0
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
-      const p = b[r][c]
-      if (!p) continue
-      const sign = p.color === 'white' ? 1 : -1
-      let pieceScore = PIECE_VALUES[p.type]
-      const rr = p.color === 'white' ? r : 7 - r
-      switch (p.type) {
-        case 'p': pieceScore += PAWN_TABLE[rr][c]; break
-        case 'n': pieceScore += KNIGHT_TABLE[rr][c]; break
-        case 'b': pieceScore += BISHOP_TABLE[rr][c]; break
-        case 'r': pieceScore += ROOK_TABLE[rr][c]; break
-        case 'q': pieceScore += QUEEN_TABLE[rr][c]; break
-        case 'k': pieceScore += KING_TABLE[rr][c]; break
-      }
-      score += sign * pieceScore
+      const piece = b[r][c]
+      if (!piece) continue
+      const val = PIECE_VALUES[piece.type] || 0
+      score += piece.color === 'white' ? val : -val
     }
   }
   return score
 }
 
-function minimax(b: Board, depth: number, alpha: number, beta: number, maximizing: boolean, aiColor: 'white' | 'black', castling: any, enPassant: Pos | null): number {
+function minimax(
+  b: ChessBoard,
+  depth: number,
+  alpha: number,
+  beta: number,
+  isMaximizing: boolean,
+  cRights: CastlingRights,
+  epTarget: Pos | null
+): number {
   if (depth === 0) return evaluateBoard(b)
 
-  const moves = getLegalMoves(b, maximizing ? aiColor : (aiColor === 'white' ? 'black' : 'white'), castling, enPassant)
-  if (moves.length === 0) {
-    const color = maximizing ? aiColor : (aiColor === 'white' ? 'black' : 'white')
-    return isInCheck(b, color) ? (maximizing ? -50000 : 50000) : 0
+  const color: ChessColor = isMaximizing ? 'white' : 'black'
+  const legalMoves = getLegalChessMoves(b, color, cRights, epTarget)
+
+  if (legalMoves.length === 0) {
+    if (isChessKingInCheck(b, color)) {
+      return isMaximizing ? -100000 : 100000
+    }
+    return 0 // stalemate
   }
 
-  if (maximizing) {
-    let best = -Infinity
-    for (const move of moves) {
-      const { board: nb, newCastling, newEnPassant } = makeMove(b, move, castling, enPassant)
-      const score = minimax(nb, depth - 1, alpha, beta, false, aiColor, newCastling, newEnPassant)
-      if (score > best) best = score
-      if (score > alpha) alpha = score
+  if (isMaximizing) {
+    let maxEval = -Infinity
+    for (const m of legalMoves) {
+      const sim = executeMoveSimulation(b, m, cRights, epTarget)
+      const evalScore = minimax(
+        sim.board,
+        depth - 1,
+        alpha,
+        beta,
+        false,
+        sim.newCastling,
+        sim.newEnPassant
+      )
+      maxEval = Math.max(maxEval, evalScore)
+      alpha = Math.max(alpha, evalScore)
       if (beta <= alpha) break
     }
-    return best
+    return maxEval
   } else {
-    let best = Infinity
-    for (const move of moves) {
-      const { board: nb, newCastling, newEnPassant } = makeMove(b, move, castling, enPassant)
-      const score = minimax(nb, depth - 1, alpha, beta, true, aiColor, newCastling, newEnPassant)
-      if (score < best) best = score
-      if (score < beta) beta = score
+    let minEval = Infinity
+    for (const m of legalMoves) {
+      const sim = executeMoveSimulation(b, m, cRights, epTarget)
+      const evalScore = minimax(
+        sim.board,
+        depth - 1,
+        alpha,
+        beta,
+        true,
+        sim.newCastling,
+        sim.newEnPassant
+      )
+      minEval = Math.min(minEval, evalScore)
+      beta = Math.min(beta, evalScore)
       if (beta <= alpha) break
     }
-    return best
+    return minEval
   }
 }
 
 export default function ChessInternationalPage() {
-  const [board, setBoard] = useState<Board>(() => INITIAL_BOARD.map(row => [...row]))
+  const { recordRecentGame } = useRecentGames()
+
+  useEffect(() => {
+    recordRecentGame('chess-international')
+    trackEvent('game_start', { gameSlug: 'chess-international' })
+  }, [recordRecentGame])
+
+  const [board, setBoard] = useState<ChessBoard>(() => cloneChessBoard(INITIAL_CHESS_BOARD))
   const [selected, setSelected] = useState<Pos | null>(null)
-  const [currentPlayer, setCurrentPlayer] = useState<'white' | 'black'>('white')
+  const [currentPlayer, setCurrentPlayer] = useState<ChessColor>('white')
   const [moves, setMoves] = useState(0)
   const [gameOver, setGameOver] = useState(false)
-  const [winner, setWinner] = useState<'white' | 'black' | null>(null)
+  const [winner, setWinner] = useState<ChessColor | null>(null)
+  const [isStalemate, setIsStalemate] = useState(false)
   const [gameMode, setGameMode] = useState<'pvp' | 'ai'>('ai')
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
-  const [playerColor, setPlayerColor] = useState<'white' | 'black'>('white')
+  const [playerColor] = useState<ChessColor>('white')
   const [thinking, setThinking] = useState(false)
-  const [castlingRights, setCastlingRights] = useState({
-    whiteKingside: true, whiteQueenside: true, blackKingside: true, blackQueenside: true
+  const [castlingRights, setCastlingRights] = useState<CastlingRights>({
+    whiteKingside: true,
+    whiteQueenside: true,
+    blackKingside: true,
+    blackQueenside: true,
   })
   const [enPassantTarget, setEnPassantTarget] = useState<Pos | null>(null)
   const [validMoves, setValidMoves] = useState<Pos[]>([])
-  const [pendingPromotion, setPendingPromotion] = useState<{ from: Pos; to: Pos; color: 'white' | 'black' } | null>(null)
-  const [isStalemate, setIsStalemate] = useState(false)
-  const [history, setHistory] = useState<{
-    board: Board
-    currentPlayer: 'white' | 'black'
-    castlingRights: any
-    enPassantTarget: Pos | null
-    moves: number
-  }[]>([])
+  const [pendingPromotion, setPendingPromotion] = useState<{
+    from: Pos
+    to: Pos
+    color: ChessColor
+  } | null>(null)
+  const [history, setHistory] = useState<
+    {
+      board: ChessBoard
+      currentPlayer: ChessColor
+      castlingRights: CastlingRights
+      enPassantTarget: Pos | null
+      moves: number
+    }[]
+  >([])
 
   const boardRef = useRef(board)
   const castlingRightsRef = useRef(castlingRights)
   const enPassantTargetRef = useRef(enPassantTarget)
+
   useEffect(() => { boardRef.current = board }, [board])
   useEffect(() => { castlingRightsRef.current = castlingRights }, [castlingRights])
   useEffect(() => { enPassantTargetRef.current = enPassantTarget }, [enPassantTarget])
 
-  const inCheck = useMemo(() => isInCheck(board, currentPlayer), [board, currentPlayer])
+  const inCheck = useMemo(
+    () => isChessKingInCheck(board, currentPlayer),
+    [board, currentPlayer]
+  )
 
   const pushHistory = useCallback(() => {
     setHistory(prev => [
       ...prev.slice(-20),
       {
-        board: board.map(row => [...row]),
+        board: cloneChessBoard(board),
         currentPlayer,
         castlingRights: { ...castlingRights },
         enPassantTarget: enPassantTarget ? { ...enPassantTarget } : null,
-        moves
-      }
+        moves,
+      },
     ])
   }, [board, currentPlayer, castlingRights, enPassantTarget, moves])
 
@@ -450,74 +195,22 @@ export default function ChessInternationalPage() {
     setHistory(h => h.slice(0, -1))
   }
 
-  const completeMove = (from: Pos, to: Pos, promoType?: string) => {
-    pushHistory()
-    const move: Move = { from, to, promotionType: promoType }
-    const { board: nb, captured, newCastling, newEnPassant } = makeMove(board, move, castlingRights, enPassantTarget)
-
-    if (captured?.type === 'k') {
-      setBoard(nb)
-      boardRef.current = nb
-      setGameOver(true)
-      setWinner(currentPlayer)
-      setSelected(null)
-      setValidMoves([])
-      return
-    }
-
-    setBoard(nb)
-    boardRef.current = nb
-    setCastlingRights(newCastling)
-    castlingRightsRef.current = newCastling
-    setEnPassantTarget(newEnPassant)
-    enPassantTargetRef.current = newEnPassant
-    setMoves(m => m + 1)
-    setSelected(null)
-    setValidMoves([])
-
-    const next = currentPlayer === 'white' ? 'black' : 'white'
-    setCurrentPlayer(next)
-
-    // Check if next player has any legal moves
-    const nextLegal = getLegalMoves(nb, next, newCastling, newEnPassant)
-    if (nextLegal.length === 0) {
-      setGameOver(true)
-      if (isInCheck(nb, next)) {
-        setWinner(currentPlayer)
-      } else {
-        setIsStalemate(true)
-      }
-      return
-    }
-
-    if (gameMode === 'ai' && !gameOver) {
-      setTimeout(() => aiMove(), 100)
-    }
-  }
-
-  const handlePromoteSelect = (type: string) => {
-    if (!pendingPromotion) return
-    const { from, to } = pendingPromotion
-    setPendingPromotion(null)
-    completeMove(from, to, type)
-  }
-
   const aiMove = useCallback(() => {
     setThinking(true)
     setTimeout(() => {
-      const currentBoard = boardRef.current
+      const curBoard = boardRef.current
       const depth = AI_DEPTH[difficulty]
-      const aiColor = playerColor === 'white' ? 'black' : 'white'
-      const humanColor = playerColor
-      const currentCastling = castlingRightsRef.current
-      const currentEnPassant = enPassantTargetRef.current
+      const aiColor: ChessColor = playerColor === 'white' ? 'black' : 'white'
+      const curCastling = castlingRightsRef.current
+      const curEnPassant = enPassantTargetRef.current
 
-      const filteredAiMoves = getLegalMoves(currentBoard, aiColor, currentCastling, currentEnPassant)
+      const legalMoves = getLegalChessMoves(curBoard, aiColor, curCastling, curEnPassant)
 
-      if (filteredAiMoves.length === 0) {
+      if (legalMoves.length === 0) {
+        const status = getChessGameStatus(curBoard, aiColor, curCastling, curEnPassant)
         setGameOver(true)
-        if (isInCheck(currentBoard, aiColor)) {
-          setWinner(humanColor)
+        if (status.status === 'checkmate') {
+          setWinner(playerColor)
         } else {
           setIsStalemate(true)
         }
@@ -526,50 +219,87 @@ export default function ChessInternationalPage() {
       }
 
       let bestScore = aiColor === 'white' ? -Infinity : Infinity
-      let bestMove = filteredAiMoves[0]
+      let bestMove = legalMoves[0]
 
-      for (const move of filteredAiMoves) {
-        const { board: nb, newCastling, newEnPassant } = makeMove(currentBoard, move, currentCastling, currentEnPassant)
-        const score = minimax(nb, depth - 1, -Infinity, Infinity, false, aiColor, newCastling, newEnPassant)
+      for (const m of legalMoves) {
+        const sim = executeMoveSimulation(curBoard, m, curCastling, curEnPassant)
+        const score = minimax(
+          sim.board,
+          depth - 1,
+          -Infinity,
+          Infinity,
+          aiColor === 'black', // next player is maximizing (white)
+          sim.newCastling,
+          sim.newEnPassant
+        )
         if (aiColor === 'white' ? score > bestScore : score < bestScore) {
           bestScore = score
-          bestMove = move
+          bestMove = m
         }
       }
 
-      const { board: nb, captured, newCastling, newEnPassant } = makeMove(currentBoard, bestMove, currentCastling, currentEnPassant)
-
-      if (captured?.type === 'k') {
-        setBoard(nb)
-        boardRef.current = nb
-        setGameOver(true)
-        setWinner(aiColor)
-        setThinking(false)
-        return
-      }
-
-      setBoard(nb)
-      boardRef.current = nb
-      setCastlingRights(newCastling)
-      castlingRightsRef.current = newCastling
-      setEnPassantTarget(newEnPassant)
-      enPassantTargetRef.current = newEnPassant
+      const sim = executeMoveSimulation(curBoard, bestMove, curCastling, curEnPassant)
+      setBoard(sim.board)
+      boardRef.current = sim.board
+      setCastlingRights(sim.newCastling)
+      castlingRightsRef.current = sim.newCastling
+      setEnPassantTarget(sim.newEnPassant)
+      enPassantTargetRef.current = sim.newEnPassant
       setMoves(m => m + 1)
-      setCurrentPlayer(humanColor)
+      setCurrentPlayer(playerColor)
       setThinking(false)
 
-      // Check human checkmate / stalemate
-      const humanMoves = getLegalMoves(nb, humanColor, newCastling, newEnPassant)
-      if (humanMoves.length === 0) {
+      const humanStatus = getChessGameStatus(sim.board, playerColor, sim.newCastling, sim.newEnPassant)
+      if (humanStatus.status === 'checkmate') {
         setGameOver(true)
-        if (isInCheck(nb, humanColor)) {
-          setWinner(aiColor)
-        } else {
-          setIsStalemate(true)
-        }
+        setWinner(aiColor)
+      } else if (humanStatus.status === 'stalemate') {
+        setGameOver(true)
+        setIsStalemate(true)
       }
-    }, 500)
+    }, 200)
   }, [difficulty, playerColor])
+
+  const completeMove = (from: Pos, to: Pos, promoType?: ChessPieceType) => {
+    pushHistory()
+    const move: ChessMove = { from, to, promotionType: promoType }
+    const sim = executeMoveSimulation(board, move, castlingRights, enPassantTarget)
+
+    setBoard(sim.board)
+    boardRef.current = sim.board
+    setCastlingRights(sim.newCastling)
+    castlingRightsRef.current = sim.newCastling
+    setEnPassantTarget(sim.newEnPassant)
+    enPassantTargetRef.current = sim.newEnPassant
+    setMoves(m => m + 1)
+    setSelected(null)
+    setValidMoves([])
+
+    const nextColor: ChessColor = currentPlayer === 'white' ? 'black' : 'white'
+    setCurrentPlayer(nextColor)
+
+    const nextStatus = getChessGameStatus(sim.board, nextColor, sim.newCastling, sim.newEnPassant)
+    if (nextStatus.status === 'checkmate') {
+      setGameOver(true)
+      setWinner(currentPlayer)
+      return
+    } else if (nextStatus.status === 'stalemate') {
+      setGameOver(true)
+      setIsStalemate(true)
+      return
+    }
+
+    if (gameMode === 'ai' && !gameOver) {
+      setTimeout(() => aiMove(), 150)
+    }
+  }
+
+  const handlePromoteSelect = (type: ChessPieceType) => {
+    if (!pendingPromotion) return
+    const { from, to } = pendingPromotion
+    setPendingPromotion(null)
+    completeMove(from, to, type)
+  }
 
   const handleClick = (r: number, c: number) => {
     if (gameOver || thinking || pendingPromotion) return
@@ -593,32 +323,33 @@ export default function ChessInternationalPage() {
         }
 
         completeMove(selected, { r, c })
-        return
-      }
-
-      const piece = board[r][c]
-      if (piece && piece.color === currentPlayer) {
-        setSelected({ r, c })
-        const filteredMoves = getLegalMoves(board, currentPlayer, castlingRights, enPassantTarget).filter(m => m.from.r === r && m.from.c === c)
-        setValidMoves(filteredMoves.map(m => m.to))
       } else {
-        setSelected(null)
-        setValidMoves([])
+        const piece = board[r][c]
+        if (piece && piece.color === currentPlayer) {
+          setSelected({ r, c })
+          const allLegals = getLegalChessMoves(board, currentPlayer, castlingRights, enPassantTarget)
+          const movesFromHere = allLegals.filter(m => m.from.r === r && m.from.c === c).map(m => m.to)
+          setValidMoves(movesFromHere)
+        } else {
+          setSelected(null)
+          setValidMoves([])
+        }
       }
     } else {
       const piece = board[r][c]
       if (piece && piece.color === currentPlayer) {
         setSelected({ r, c })
-        const filteredMoves = getLegalMoves(board, currentPlayer, castlingRights, enPassantTarget).filter(m => m.from.r === r && m.from.c === c)
-        setValidMoves(filteredMoves.map(m => m.to))
+        const allLegals = getLegalChessMoves(board, currentPlayer, castlingRights, enPassantTarget)
+        const movesFromHere = allLegals.filter(m => m.from.r === r && m.from.c === c).map(m => m.to)
+        setValidMoves(movesFromHere)
       }
     }
   }
 
   const resetGame = () => {
-    const initial = INITIAL_BOARD.map(row => [...row])
-    setBoard(initial)
-    boardRef.current = initial
+    const initB = cloneChessBoard(INITIAL_CHESS_BOARD)
+    setBoard(initB)
+    boardRef.current = initB
     setSelected(null)
     setCurrentPlayer('white')
     setMoves(0)
@@ -635,241 +366,258 @@ export default function ChessInternationalPage() {
     setThinking(false)
   }
 
-  const switchMode = (mode: 'pvp' | 'ai') => {
-    setGameMode(mode)
-    resetGame()
-  }
+  const instructions = [
+    { title: '正规规则', desc: '支持王翼/后翼易位（Castling）、吃过路兵（En Passant）与兵到底线升变（Promotion）。' },
+    { title: '胜负判定', desc: '严格依据国际棋联 (FIDE) 规则，以将死（Checkmate）判定胜负，无合法着法且未受将军则为逼和（Stalemate）。' },
+    { title: '升变选择', desc: '当兵推进至第 8 排时，将弹出标准升变对话框供选择后 (Queen)、车 (Rook)、象 (Bishop) 或马 (Knight)。' },
+  ]
 
-  const switchSide = () => {
-    const newColor = playerColor === 'white' ? 'black' : 'white'
-    setPlayerColor(newColor)
-    resetGame()
-  }
+  const controls = (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={handleUndo}
+        disabled={history.length === 0 || thinking || Boolean(pendingPromotion)}
+        className="px-3 py-1.5 rounded-md border border-border bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-secondary text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-40 cursor-pointer"
+      >
+        <Undo2 className="w-3.5 h-3.5" />
+        <span>悔棋</span>
+      </button>
+      <button
+        onClick={resetGame}
+        className="px-3 py-1.5 rounded-md border border-border bg-surface text-text-primary hover:bg-surface-secondary text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+      >
+        <RotateCcw className="w-3.5 h-3.5" />
+        <span>重新开始</span>
+      </button>
+    </div>
+  )
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
-
-      <main className="flex-1 py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-[#8B5CF6]/20 flex items-center justify-center">
-                <Crown className="w-5 h-5 text-[#8B5CF6]" />
+    <GameLayout
+      title="国际象棋"
+      titleEn="International Chess"
+      categoryName="策略棋盘"
+      description="严格遵循国际棋联 FIDE 规范，支持王车易位、过路兵、兵升变选择与智能 AI 对局。"
+      controlsNode={controls}
+      instructions={instructions}
+    >
+      <div className="w-full flex flex-col lg:flex-row items-center lg:items-start justify-center gap-6">
+        {/* Left Side Controls */}
+        <div className="w-full lg:w-56 space-y-3 shrink-0">
+          {/* Status Box */}
+          <div className="p-4 rounded-xl border border-border bg-surface-secondary/50">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-3.5 h-3.5 rounded-full border ${
+                    currentPlayer === 'white'
+                      ? 'bg-white border-border shadow-xs'
+                      : 'bg-zinc-900 border-zinc-700'
+                  }`}
+                />
+                <span className="text-sm font-semibold text-text-primary">
+                  {gameOver
+                    ? isStalemate
+                      ? '平局 (逼和 Stalemate)'
+                      : winner === 'white'
+                      ? '白方获胜！'
+                      : '黑方获胜！'
+                    : `${currentPlayer === 'white' ? '白方' : '黑方'}走棋`}
+                </span>
               </div>
-              <h1 className="text-2xl font-bold text-white">国际象棋</h1>
-              <span className="px-2 py-1 text-xs rounded-full bg-[#8B5CF6]/20 text-[#8B5CF6]">
-                {gameMode === 'ai' ? 'AI对战' : '双人对弈'}
-              </span>
             </div>
-            <p className="text-[#94A3B8]">经典策略游戏，白方先手</p>
-          </div>
 
-          {/* Game Mode & Difficulty */}
-          <div className="glass-card p-4 mb-4">
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="flex gap-2 flex-1">
-                <button
-                  onClick={() => switchMode('ai')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${gameMode === 'ai' ? 'bg-[#8B5CF6] text-white shadow-lg shadow-[#8B5CF6]/30' : 'bg-[#111827] text-[#94A3B8] hover:bg-[#1F2937]'}`}
-                >
-                  <Bot className="w-4 h-4" />AI对战
-                </button>
-                <button
-                  onClick={() => switchMode('pvp')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${gameMode === 'pvp' ? 'bg-[#8B5CF6] text-white shadow-lg shadow-[#8B5CF6]/30' : 'bg-[#111827] text-[#94A3B8] hover:bg-[#1F2937]'}`}
-                >
-                  <User className="w-4 h-4" />双人对战
-                </button>
-              </div>
-              {gameMode === 'ai' && (
-                <div className="flex items-center gap-2">
-                  <span className="text-[#94A3B8] text-xs">难度:</span>
-                  {(['easy', 'medium', 'hard'] as const).map(d => (
-                    <button
-                      key={d}
-                      onClick={() => setDifficulty(d)}
-                      className={`py-1.5 px-3 rounded-lg text-xs font-medium transition-all ${difficulty === d ? 'bg-[#06B6D4] text-white' : 'bg-[#111827] text-[#94A3B8] hover:bg-[#1F2937]'}`}
-                    >
-                      {d === 'easy' ? '简单' : d === 'medium' ? '中等' : '困难'}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="text-xs text-text-muted font-mono mt-1">
+              累计步数: {moves} 步
             </div>
-          </div>
 
-          {/* Game Info */}
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-3">
-              <div className={`w-5 h-5 rounded-full ${currentPlayer === 'white' ? 'bg-white' : 'bg-black'} ring-2 ring-offset-2 ring-offset-[#080B14] ${currentPlayer === 'white' ? 'ring-white' : 'ring-gray-500'}`} />
-              <span className="text-white font-medium flex items-center gap-2">
-                {gameOver ? (
-                  isStalemate ? (
-                    <span className="text-amber-400 font-bold">平局 (逼和 Stalemate)</span>
-                  ) : (
-                    <span className={winner === 'white' ? 'text-[#10B981]' : 'text-[#EF4444]'}>{winner === 'white' ? '白方获胜！' : '黑方获胜！'}</span>
-                  )
-                ) : thinking ? (
-                  <span className="text-[#06B6D4]">AI思考中...</span>
-                ) : (
-                  <>
-                    <span>{currentPlayer === 'white' ? '白方' : '黑方'}走棋</span>
-                    {inCheck && (
-                      <span className="px-2 py-0.5 rounded bg-rose-950/80 border border-rose-600 text-rose-300 text-xs font-bold animate-pulse flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3 text-rose-400" />
-                        将军！
-                      </span>
-                    )}
-                  </>
-                )}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[#94A3B8] text-sm mr-1">步数: {moves}</span>
-              <button
-                onClick={handleUndo}
-                disabled={history.length === 0 || thinking || Boolean(pendingPromotion)}
-                className="px-3 py-2 bg-slate-800 disabled:opacity-40 text-slate-200 rounded-lg hover:bg-slate-700 transition-all text-xs font-medium flex items-center gap-1"
-                title="悔棋"
-              >
-                <Undo2 className="w-3.5 h-3.5" />
-                <span>悔棋</span>
-              </button>
-              <button
-                onClick={resetGame}
-                className="px-3.5 py-2 bg-[#8B5CF6] text-white rounded-lg hover:bg-[#7C3AED] transition-all text-xs font-medium flex items-center gap-1"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>重开</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Board */}
-          <div className="glass-card p-4 relative">
-            {/* Pawn Promotion Modal */}
-            {pendingPromotion && (
-              <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-30 rounded-xl flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
-                <span className="text-white font-bold text-base mb-1">小兵升变 (Pawn Promotion)</span>
-                <span className="text-xs text-slate-400 mb-4">请选择小兵要升变成为的高级兵种</span>
-                <div className="flex gap-3">
-                  {[
-                    { type: 'q', name: '后 (Queen)', symbol: pendingPromotion.color === 'white' ? '♕' : '♛' },
-                    { type: 'r', name: '车 (Rook)', symbol: pendingPromotion.color === 'white' ? '♖' : '♜' },
-                    { type: 'b', name: '象 (Bishop)', symbol: pendingPromotion.color === 'white' ? '♗' : '♝' },
-                    { type: 'n', name: '马 (Knight)', symbol: pendingPromotion.color === 'white' ? '♘' : '♞' },
-                  ].map((p) => (
-                    <button
-                      key={p.type}
-                      onClick={() => handlePromoteSelect(p.type)}
-                      className="p-4 bg-slate-900 hover:bg-indigo-950 border border-slate-700 hover:border-indigo-500 rounded-2xl flex flex-col items-center gap-1.5 transition-all shadow-xl hover:scale-105"
-                    >
-                      <span className="text-4xl filter drop-shadow">{p.symbol}</span>
-                      <span className="text-xs text-slate-200 font-semibold">{p.name.split(' ')[0]}</span>
-                    </button>
-                  ))}
-                </div>
+            {inCheck && !gameOver && (
+              <div className="mt-2 py-1 px-2 rounded-md bg-danger/15 text-danger border border-danger/30 text-xs font-bold text-center animate-pulse flex items-center justify-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>将军！</span>
               </div>
             )}
-            <div
-              className="grid gap-0 mx-auto shadow-xl rounded-lg overflow-hidden"
-              style={{ gridTemplateColumns: `repeat(8, 1fr)`, maxWidth: '480px' }}
-            >
-              {board.map((row, r) =>
-                row.map((cell, c) => {
-                  const isSelected = selected?.r === r && selected?.c === c
-                  const isLight = (r + c) % 2 === 0
-                  const isValid = validMoves.some(m => m.r === r && m.c === c)
-
-                  return (
-                    <button
-                      key={`${r}-${c}`}
-                      onClick={() => handleClick(r, c)}
-                      className={`aspect-square flex items-center justify-center text-2xl sm:text-3xl transition-all relative ${
-                        isSelected ? 'z-10' : ''
-                      }`}
-                      style={{
-                        background: isSelected
-                          ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'
-                          : isLight
-                            ? 'linear-gradient(135deg, #E8D5B7 0%, #D4B896 100%)'
-                            : 'linear-gradient(135deg, #8B6914 0%, #724A10 100%)',
-                        boxShadow: isSelected ? '0 0 0 3px #F59E0B, 0 4px 12px rgba(0,0,0,0.3)' : 'inset 0 0 0 1px rgba(0,0,0,0.1)',
-                      }}
-                    >
-                      {isValid && !cell && (
-                        <div className="w-4 h-4 rounded-full bg-black/30" />
-                      )}
-                      {isValid && cell && (
-                        <div className="absolute inset-0 rounded-sm ring-2 ring-orange-500 ring-inset" />
-                      )}
-                      {cell && (
-                        <span
-                          className="filter drop-shadow-lg"
-                          style={{
-                            color: cell.color === 'white' ? '#FFFFFF' : '#1a1a1a',
-                            textShadow: cell.color === 'white'
-                              ? '0 1px 2px rgba(0,0,0,0.5)'
-                              : '0 1px 2px rgba(255,255,255,0.2)',
-                            fontSize: 'clamp(1.5rem, 4vw, 2.5rem)'
-                          }}
-                        >
-                          {PIECE_SYMBOLS[cell.type]?.[cell.color]}
-                        </span>
-                      )}
-                    </button>
-                  )
-                })
-              )}
-            </div>
+            {thinking && (
+              <div className="mt-2 py-1 px-2 rounded-md bg-accent-subtle text-accent border border-accent/20 text-xs font-medium text-center">
+                AI 运算推演中...
+              </div>
+            )}
           </div>
 
-          {/* Legend */}
-          <div className="mt-6 flex justify-center gap-8">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center text-sm shadow">♔</div>
-              <span className="text-[#94A3B8]">白方{playerColor === 'white' && gameMode === 'ai' ? '(你)' : ''}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-gray-800 border-2 border-gray-600 flex items-center justify-center text-sm shadow">♚</div>
-              <span className="text-[#94A3B8]">黑方{playerColor === 'black' && gameMode === 'ai' ? '(你)' : ''}</span>
-            </div>
-          </div>
-
-          {/* Game Over */}
-          {gameOver && (
-            <div className="mt-6 glass-card p-8 text-center">
-              <Trophy className="w-16 h-16 mx-auto mb-4 text-[#F59E0B]" />
-              <h2 className="text-3xl font-bold text-white mb-2">
-                {isStalemate ? '平局 (逼和 Stalemate)！' : winner === 'white' ? '白方获胜！' : '黑方获胜！'}
-              </h2>
-              <p className="text-[#94A3B8] mb-6">共用 {moves} 步</p>
+          {/* Mode Selector */}
+          <div className="p-3.5 rounded-xl border border-border bg-surface-secondary/50">
+            <div className="text-xs font-semibold text-text-secondary mb-2">对局模式</div>
+            <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={resetGame}
-                className="px-8 py-3 bg-[#8B5CF6] text-white rounded-xl font-medium hover:bg-[#7C3AED] flex items-center gap-2 mx-auto transition-all"
+                onClick={() => {
+                  setGameMode('pvp')
+                  resetGame()
+                }}
+                className={`py-2 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                  gameMode === 'pvp'
+                    ? 'bg-accent text-white shadow-subtle'
+                    : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
+                }`}
               >
-                <RotateCcw className="w-5 h-5" />再来一局
+                <User className="w-3.5 h-3.5" />
+                <span>双人</span>
               </button>
+              <button
+                onClick={() => {
+                  setGameMode('ai')
+                  resetGame()
+                }}
+                className={`py-2 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                  gameMode === 'ai'
+                    ? 'bg-accent text-white shadow-subtle'
+                    : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <Bot className="w-3.5 h-3.5" />
+                <span>人机</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Difficulty */}
+          {gameMode === 'ai' && (
+            <div className="p-3.5 rounded-xl border border-border bg-surface-secondary/50">
+              <div className="text-xs font-semibold text-text-secondary mb-2">AI 难度等级</div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(['easy', 'medium', 'hard'] as const).map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setDifficulty(d)}
+                    className={`py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                      difficulty === d
+                        ? 'bg-accent text-white shadow-subtle'
+                        : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    {d === 'easy' ? '初级' : d === 'medium' ? '中级' : '大师'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Central Chess Board Surface */}
+        <div className="relative w-full max-w-[460px] sm:max-w-[480px] rounded-2xl border-4 border-border bg-surface p-2 shadow-xl">
+          {/* Pawn Promotion Modal */}
+          {pendingPromotion && (
+            <div className="absolute inset-0 bg-canvas/90 backdrop-blur-xs z-30 rounded-xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in-95 duration-120">
+              <span className="text-text-primary font-bold text-base mb-1">
+                小兵升变 (Pawn Promotion)
+              </span>
+              <span className="text-xs text-text-secondary mb-4">
+                请选择小兵推进到底线后升变的高级兵种
+              </span>
+              <div className="flex gap-2.5">
+                {[
+                  { type: 'q' as const, name: '后 (Queen)', symbol: pendingPromotion.color === 'white' ? '♕' : '♛' },
+                  { type: 'r' as const, name: '车 (Rook)', symbol: pendingPromotion.color === 'white' ? '♖' : '♜' },
+                  { type: 'b' as const, name: '象 (Bishop)', symbol: pendingPromotion.color === 'white' ? '♗' : '♝' },
+                  { type: 'n' as const, name: '马 (Knight)', symbol: pendingPromotion.color === 'white' ? '♘' : '♞' },
+                ].map(p => (
+                  <button
+                    key={p.type}
+                    onClick={() => handlePromoteSelect(p.type)}
+                    className="p-3 bg-surface hover:bg-surface-secondary border border-border hover:border-accent rounded-xl flex flex-col items-center gap-1 transition-all shadow-subtle cursor-pointer hover:scale-105"
+                  >
+                    <span className="text-3xl">{p.symbol}</span>
+                    <span className="text-[11px] text-text-primary font-semibold">{p.name.split(' ')[0]}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Rules */}
-          <div className="mt-6 p-4 glass-card">
-            <p className="text-sm text-[#94A3B8]">
-              <span className="text-[#8B5CF6] font-medium">规则：</span>
-              {gameMode === 'ai' ? `你执${playerColor === 'white' ? '白方(先行)' : '黑方(后行)'}。` : '白方先手。'}
-              将死对方国王获胜，支持王车易位、吃过路兵与小兵升变。无合法走步且未被将军时判为逼和（平局）。
-            </p>
+          {/* 8x8 Grid */}
+          <div
+            className="grid gap-0 mx-auto rounded-lg overflow-hidden border border-border shadow-inner"
+            style={{ gridTemplateColumns: `repeat(8, 1fr)` }}
+          >
+            {board.map((row, r) =>
+              row.map((cell, c) => {
+                const isSelected = selected?.r === r && selected?.c === c
+                const isLight = (r + c) % 2 === 0
+                const isValid = validMoves.some(m => m.r === r && m.c === c)
+
+                return (
+                  <button
+                    key={`${r}-${c}`}
+                    onClick={() => handleClick(r, c)}
+                    className={`aspect-square flex items-center justify-center text-2xl sm:text-3xl transition-all relative cursor-pointer select-none ${
+                      isSelected ? 'z-10' : ''
+                    }`}
+                    style={{
+                      background: isSelected
+                        ? '#F59E0B'
+                        : isLight
+                        ? '#F0D9B5'
+                        : '#B58863',
+                      boxShadow: isSelected
+                        ? 'inset 0 0 0 3px #D97706, 0 2px 8px rgba(0,0,0,0.2)'
+                        : 'none',
+                    }}
+                  >
+                    {isValid && !cell && (
+                      <div className="w-3.5 h-3.5 rounded-full bg-black/25" />
+                    )}
+                    {isValid && cell && (
+                      <div className="absolute inset-0 ring-3 ring-orange-500 ring-inset" />
+                    )}
+                    {cell && (
+                      <span
+                        className="transition-transform hover:scale-105"
+                        style={{
+                          color: cell.color === 'white' ? '#FFFFFF' : '#18181B',
+                          filter:
+                            cell.color === 'white'
+                              ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.85))'
+                              : 'drop-shadow(0 1px 1px rgba(255,255,255,0.4))',
+                          fontSize: 'clamp(1.4rem, 4vw, 2.3rem)',
+                        }}
+                      >
+                        {PIECE_SYMBOLS[cell.type]?.[cell.color]}
+                      </span>
+                    )}
+                  </button>
+                )
+              })
+            )}
           </div>
-
-          {/* Non-intrusive AdSlot */}
-          <AdSlot placement="tool-bottom" className="mt-8" />
         </div>
-      </main>
+      </div>
 
-      <Footer />
-    </div>
+      {/* Game Over Modal */}
+      {gameOver && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="p-6 rounded-2xl border border-border bg-surface shadow-2xl text-center max-w-sm w-full animate-in fade-in zoom-in-95 duration-150">
+            <Trophy className="w-12 h-12 mx-auto mb-3 text-warning" />
+            <h2 className="text-2xl font-bold text-text-primary mb-1">
+              {isStalemate
+                ? '和局 (逼和 Stalemate)！'
+                : winner === 'white'
+                ? '白方获胜！'
+                : '黑方获胜！'}
+            </h2>
+            <p className="text-xs text-text-secondary mb-5">
+              {isStalemate
+                ? '一方无合法步法且未处于将军状态，双方握手言和'
+                : '依据 FIDE 正规规则达成将死 (Checkmate)'}
+            </p>
+            <button
+              onClick={resetGame}
+              className="w-full py-2.5 px-4 bg-accent hover:bg-accent-hover text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>重新再来一局</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </GameLayout>
   )
 }

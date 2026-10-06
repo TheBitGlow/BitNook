@@ -3,153 +3,75 @@
 import React from 'react'
 import Link from 'next/link'
 import { useI18n } from '@/lib/i18n'
-import { Wrench, ShieldCheck, Heart } from 'lucide-react'
+import { Logo } from '@/components/layout/Logo'
 
 export default function Footer() {
-  const { locale } = useI18n()
+  const { locale, toggleLocale } = useI18n()
   const isZh = locale === 'zh'
 
   return (
-    <footer className="bg-[#090D16] border-t border-[#1E293B] mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-          {/* Brand Info */}
-          <div className="md:col-span-2">
-            <Link href="/" className="inline-flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white">
-                <Wrench className="w-3.5 h-3.5" />
-              </div>
-              <span className="text-lg font-bold text-white tracking-tight">BitNook</span>
+    <footer className="border-t border-border bg-surface mt-auto py-10 transition-colors">
+      <div className="max-w-[1240px] mx-auto px-4 sm:px-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-8 border-b border-border">
+          {/* Left: Brand & Tagline */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+            <Link href="/" className="focus-visible:outline-none">
+              <Logo showText={true} subText={isZh ? '数字工具抽屉' : 'Digital Utility Drawer'} />
             </Link>
-            <p className="text-xs text-slate-400 max-w-sm leading-relaxed mb-4">
-              {isZh
-                ? 'All Tools, One Nook · 一站搞定，方寸万象。面向职场、财务、健康与技术开发者，提供高频、真实、纯净隐私的在线实用工具与益智棋牌。'
-                : 'All Tools, One Nook. Authentic, privacy-first productivity calculators, converters, network utilities, and classic games.'}
-            </p>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#141C2E] border border-[#1E293B] text-[11px] text-emerald-400 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{isZh ? '本地算法优先 · 保护数据隐私' : 'Local-First Privacy Architecture'}</span>
+            <div className="text-xs text-text-secondary">
+              {isZh ? '一站搞定，方寸万象 · All Tools, One Nook' : 'Everyday tools, in one quiet place.'}
             </div>
           </div>
 
-          {/* Quick Categories */}
-          <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3">
-              {isZh ? '工具分类' : 'Categories'}
-            </h3>
-            <ul className="space-y-2 text-xs text-slate-400">
-              <li>
-                <Link href="/tools/daily" className="hover:text-white transition-colors">
-                  {isZh ? '日常效率' : 'Daily Tools'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/tools/finance" className="hover:text-white transition-colors">
-                  {isZh ? '财务计算' : 'Finance Tools'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/tools/health" className="hover:text-white transition-colors">
-                  {isZh ? '健康评估' : 'Health Tools'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/tools/convert" className="hover:text-white transition-colors">
-                  {isZh ? '格式转换' : 'Format Convert'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/tools/network" className="hover:text-white transition-colors">
-                  {isZh ? '网络诊断' : 'Network Tools'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/tools/ai" className="hover:text-white transition-colors">
-                  {isZh ? 'AI 显存估算' : 'AI Tools'}
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {/* Center: Core Direct Links */}
+          <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-text-secondary">
+            <Link href="/tools" className="hover:text-text-primary transition-colors">
+              {isZh ? '全部工具' : 'Tools'}
+            </Link>
+            <Link href="/games" className="hover:text-text-primary transition-colors">
+              {isZh ? '经典小憩' : 'Games'}
+            </Link>
+            <Link href="/about" className="hover:text-text-primary transition-colors">
+              {isZh ? '关于' : 'About'}
+            </Link>
+            <Link href="/privacy" className="hover:text-text-primary transition-colors">
+              {isZh ? '隐私政策' : 'Privacy'}
+            </Link>
+            <Link href="/terms" className="hover:text-text-primary transition-colors">
+              {isZh ? '服务条款' : 'Terms'}
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('bitnook-open-consent'))
+                }
+              }}
+              className="hover:text-text-primary transition-colors text-xs text-text-secondary cursor-pointer"
+            >
+              {isZh ? 'Cookie 设置' : 'Cookie Preferences'}
+            </button>
+          </nav>
 
-          {/* Games & Featured */}
+          {/* Right: Language switch */}
           <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3">
-              {isZh ? '休闲游戏' : 'Mini Games'}
-            </h3>
-            <ul className="space-y-2 text-xs text-slate-400">
-              <li>
-                <Link href="/games/tetris" className="hover:text-white transition-colors">
-                  {isZh ? '俄罗斯方块' : 'Tetris'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/games/minesweeper" className="hover:text-white transition-colors">
-                  {isZh ? '经典扫雷' : 'Minesweeper'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/games/snake" className="hover:text-white transition-colors">
-                  {isZh ? '贪吃蛇' : 'Snake'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/games/gomoku" className="hover:text-white transition-colors">
-                  {isZh ? '五子棋对弈' : 'Gomoku'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/games/chess-chinese" className="hover:text-white transition-colors">
-                  {isZh ? '中国象棋' : 'Chinese Chess'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/games/chess-international" className="hover:text-white transition-colors">
-                  {isZh ? '国际象棋' : 'International Chess'}
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Legal & About */}
-          <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3">
-              {isZh ? '关于与合规' : 'About & Legal'}
-            </h3>
-            <ul className="space-y-2 text-xs text-slate-400">
-              <li>
-                <Link href="/pricing" className="hover:text-white transition-colors">
-                  {isZh ? '会员方案' : 'Pricing Plans'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/about" className="hover:text-white transition-colors">
-                  {isZh ? '关于产品' : 'About Us'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="hover:text-white transition-colors">
-                  {isZh ? '问题反馈' : 'Contact & Feedback'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-white transition-colors">
-                  {isZh ? '隐私政策' : 'Privacy Policy'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="hover:text-white transition-colors">
-                  {isZh ? '服务条款' : 'Terms of Service'}
-                </Link>
-              </li>
-            </ul>
+            <button
+              type="button"
+              onClick={toggleLocale}
+              className="text-xs text-text-muted hover:text-text-primary transition-colors inline-flex items-center gap-1.5"
+            >
+              <span>{isZh ? '语言 / Language:' : 'Language / 语言:'}</span>
+              <span className="font-mono text-text-secondary underline underline-offset-2">
+                {isZh ? '中文' : 'English'}
+              </span>
+            </button>
           </div>
         </div>
 
-        <div className="border-t border-[#1E293B] mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>© {new Date().getFullYear()} BitNook. All rights reserved.</p>
-          <p className="flex items-center gap-1">
-            <span>Built for productivity & privacy</span>
-          </p>
+        {/* Bottom micro bar */}
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-text-muted">
+          <p>© {new Date().getFullYear()} BitNook. 本地运算优先 · 绝无多余广告干扰</p>
+          <p className="font-mono">v0.2.0 · Quiet Utility Design System</p>
         </div>
       </div>
     </footer>

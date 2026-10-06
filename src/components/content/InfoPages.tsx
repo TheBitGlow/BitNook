@@ -19,17 +19,17 @@ function PageShell({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-canvas text-text-primary">
       <Header />
       <main className="flex-1 py-10 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${color}20` }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center border border-border bg-surface shadow-subtle" style={{ color }}>
               {icon}
             </div>
-            <h1 className="text-3xl font-bold text-white">{title}</h1>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-primary">{title}</h1>
           </div>
-          {desc && <p className="text-[#94A3B8] mb-8 leading-relaxed">{desc}</p>}
+          {desc && <p className="text-text-secondary mb-8 leading-relaxed text-sm sm:text-base">{desc}</p>}
           {children}
         </div>
       </main>
@@ -40,9 +40,9 @@ function PageShell({
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-[rgba(99,102,241,0.15)] bg-[#0D1117] p-6">
-      <h2 className="text-xl font-semibold text-white mb-3">{title}</h2>
-      <div className="text-[#94A3B8] leading-relaxed space-y-3">{children}</div>
+    <section className="rounded-xl border border-border bg-surface p-6 shadow-subtle">
+      <h2 className="text-base sm:text-lg font-semibold text-text-primary mb-3">{title}</h2>
+      <div className="text-text-secondary leading-relaxed space-y-3 text-sm">{children}</div>
     </section>
   )
 }
@@ -92,15 +92,15 @@ export function ContactContent() {
     >
       <div className="grid md:grid-cols-[0.9fr_1.1fr] gap-4">
         <Section title={t('contact.emailLabel')}>
-          <a className="text-[#06B6D4] hover:text-white" href="mailto:contact@bitnook.example.com">
-            contact@bitnook.example.com
+          <a className="text-accent hover:underline font-medium" href="mailto:support@bitnook.com">
+            support@bitnook.com
           </a>
           <p>{t('contact.response')}</p>
         </Section>
         <Section title={isZh ? '反馈类型' : 'Feedback Topics'}>
           <ul className="grid sm:grid-cols-2 gap-2">
             {list('contact.topics').map((topic) => (
-              <li key={topic} className="rounded-lg bg-[#080B14] px-3 py-2">{topic}</li>
+              <li key={topic} className="rounded-md bg-surface-secondary border border-border px-3 py-2 text-text-secondary text-xs">{topic}</li>
             ))}
           </ul>
         </Section>
@@ -113,31 +113,29 @@ export function PrivacyContent() {
   const { locale, t } = useI18n()
   const sections = locale === 'zh'
     ? [
-        ['1. 信息收集', '我们可能收集您主动提供的邮箱等账户信息，以及匿名访问数据、设备类型、浏览器类型和基础使用统计。'],
-        ['2. 信息使用', '信息用于提供服务、改进体验、维护安全、分析页面表现和处理必要通知。'],
-        ['3. 本地处理', '部分工具会在浏览器本地完成计算。密码生成、文本处理等敏感输入不会主动发送到 BitNook 服务器。'],
-        ['4. Cookie 与统计', '我们可能使用 Analytics、Search Console、Clarity 和广告服务，用于统计访问、改进体验和展示相关内容。'],
-        ['5. 第三方服务', '二维码生成、广告、统计或托管服务可能由第三方提供。第三方服务适用其自身政策。'],
-        ['6. 您的权利', '您可以请求访问、更正或删除个人信息，也可以通过浏览器设置管理 Cookie。'],
-        ['7. 联系方式', '隐私相关请求可通过联系页面或 contact@bitnook.example.com 提交。'],
+        ['1. 信息收集与最小化原则', 'BitNook（比特角落）坚持数据最小化原则。我们可能收集匿名访问数据、粗略地理区域（国家/城市级别）、设备类型、浏览器类型及基础页面性能指标。除用户主动发送邮件反馈外，站点不强制要求注册，不收集用户个人真实身份、电话或身份证件。'],
+        ['2. 本地优先运算与零服务端留存', 'BitNook 的绝大部分工具（包括但不限于密码生成、文本对比、Base64 编码、JSON 格式化、房贷与个税计算等）均在您的浏览器本地内存中完成运算。您的输入内容不会被上传或存储到 BitNook 的任何服务器日志中。'],
+        ['3. Cookie 与广告服务 (Google AdSense)', '第三方供应商（包括 Google）使用 Cookie 根据用户此前访问本网站或其他网站的历史来投放广告。Google 对广告 Cookie 的使用使其及其合作伙伴能够根据用户对本网站和/或互联网上其他网站的访问记录向用户投放广告。用户可以访问 Google 广告设置 (https://www.google.com/settings/ads) 停用个性化广告，或通过 www.aboutads.info 停用第三方供应商的定向广告 Cookie。'],
+        ['4. 用户偏好与 GDPR / CPRA 合规', '对于来自欧洲经济区 (EEA)、英国、瑞士以及美国加州等司法管辖区的访客，站点提供隐私偏好授权横幅。用户可选择接受或仅保留必要 Cookie，亦可随时通过页面底部的「Cookie 设置」重新调整授权状态。'],
+        ['5. 第三方分析与安全托管', '站点部署于 Cloudflare 全球边缘网络，静态资产由边缘节点提供安全防护与 CDN 加速。外部链接、二维码图片生成或第三方 API 适用对应服务商的隐私条款。'],
+        ['6. 您的权利与联系渠道', '您可以随时清理浏览器本地存储 (localStorage) 及 Cookie。对隐私保护有任何疑问或合规建议，欢迎联系 support@bitnook.com。'],
       ]
     : [
-        ['1. Information We Collect', 'We may collect account information you provide, anonymous usage data, device type, browser type, and basic analytics events.'],
-        ['2. How We Use Information', 'Information is used to provide services, improve experience, maintain security, analyze page performance, and send necessary notices.'],
-        ['3. Local Processing', 'Some tools run directly in your browser. Sensitive inputs for password generation and text utilities are not intentionally sent to BitNook servers.'],
-        ['4. Cookies and Analytics', 'BitNook may use Analytics, Search Console, Clarity, and ad services to measure visits, improve experience, and display relevant content.'],
-        ['5. Third-Party Services', 'QR generation, ads, analytics, or hosting may be provided by third parties and governed by their own policies.'],
-        ['6. Your Rights', 'You may request access, correction, or deletion of personal information and manage cookies through your browser settings.'],
-        ['7. Contact', 'Privacy requests can be sent through the contact page or contact@bitnook.example.com.'],
+        ['1. Information Collection & Minimization', 'BitNook adheres to strict data minimization. We only collect anonymous telemetry, country/city-level geolocation, browser type, and core web vitals. We do not require registration and never collect real personal identities, phone numbers, or government IDs.'],
+        ['2. Local-First Processing & Client Isolation', 'Most BitNook tools—including password generation, text diff, Base64 converter, JSON formatter, mortgage, and tax calculators—execute entirely within your browser memory. User inputs and calculation payloads are never transmitted or persisted to BitNook server logs.'],
+        ['3. Cookies & Advertising (Google AdSense)', 'Third-party vendors, including Google, use cookies to serve ads based on a user\'s prior visits to your website or other websites. Google\'s use of advertising cookies enables it and its partners to serve ads to your users based on their visit to your sites and/or other sites on the Internet. Users may opt out of personalized advertising by visiting Google Ads Settings (https://www.google.com/settings/ads) or through www.aboutads.info.'],
+        ['4. Consent & GDPR / CPRA Compliance', 'For visitors in the EEA, UK, Switzerland, and US states such as California, BitNook provides a consent preference mechanism. You can accept or limit to essential cookies, and modify your consent at any time via the "Cookie Preferences" link in the footer.'],
+        ['5. Infrastructure & Third-Party Services', 'BitNook is delivered across Cloudflare global edge infrastructure for DDOS protection and high-speed asset distribution. External links and optional APIs operate under their respective privacy policies.'],
+        ['6. Your Rights & Contact', 'You may inspect or clear your browser local storage and cookies at any time. For questions regarding privacy practices, please contact support@bitnook.com.'],
       ]
 
   return (
-    <PageShell icon={<Shield className="w-5 h-5 text-[#10B981]" />} color="#10B981" title={t('legal.privacyTitle')}>
+    <PageShell icon={<Shield className="w-5 h-5 text-success" />} color="#16A34A" title={t('legal.privacyTitle')}>
       <div className="space-y-4">
         {sections.map(([title, body]) => (
           <Section key={title} title={title}><p>{body}</p></Section>
         ))}
-        <p className="text-sm text-[#475569]">{t('legal.updated')}</p>
+        <p className="text-xs text-text-muted pt-2">{t('legal.updated')}</p>
       </div>
     </PageShell>
   )
@@ -164,12 +162,12 @@ export function TermsContent() {
       ]
 
   return (
-    <PageShell icon={<FileText className="w-5 h-5 text-[#6366F1]" />} color="#6366F1" title={t('legal.termsTitle')}>
+    <PageShell icon={<FileText className="w-5 h-5 text-accent" />} color="#2563EB" title={t('legal.termsTitle')}>
       <div className="space-y-4">
         {sections.map(([title, body]) => (
           <Section key={title} title={title}><p>{body}</p></Section>
         ))}
-        <p className="text-sm text-[#475569]">{t('legal.updated')}</p>
+        <p className="text-xs text-text-muted pt-2">{t('legal.updated')}</p>
       </div>
     </PageShell>
   )

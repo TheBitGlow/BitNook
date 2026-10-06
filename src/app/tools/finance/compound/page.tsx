@@ -3,13 +3,15 @@
 import { useState, useMemo } from 'react'
 import ToolLayout from '@/components/tools/ToolLayout'
 import Decimal from 'decimal.js'
-import { TrendingUp, Coins, PiggyBank, Calendar } from 'lucide-react'
+import { TrendingUp, Coins, PiggyBank, Calendar, Copy, Check } from 'lucide-react'
+import { trackEvent } from '@/lib/analytics'
 
 export default function CompoundPage() {
   const [principal, setPrincipal] = useState<number>(100000)
   const [rate, setRate] = useState<number>(5)
   const [years, setYears] = useState<number>(10)
   const [compoundFreq, setCompoundFreq] = useState<number>(12) // monthly
+  const [copied, setCopied] = useState(false)
 
   const results = useMemo(() => {
     if (principal <= 0 || rate < 0 || years <= 0) {
@@ -60,6 +62,28 @@ export default function CompoundPage() {
   const formatMoney = (n: number) =>
     n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+  const handleCopyReport = async () => {
+    const report = [
+      `【BitNook 投资复利增长测算报告】`,
+      `• 初始本金：¥${formatMoney(principal)}`,
+      `• 年化复合收益率：${rate}% / 投资期限：${years} 年`,
+      `• 复利计息周期：${compoundFreq === 12 ? '按月复利' : compoundFreq === 4 ? '按季复利' : compoundFreq === 365 ? '按日复利' : '按年复利'}`,
+      `• 期末本息总金额：¥${formatMoney(results.amount)} (本金的 ${(results.amount / (principal || 1)).toFixed(2)} 倍)`,
+      `• 累计复利利息收益：+¥${formatMoney(results.totalInterest)} (纯收益率 ${((results.totalInterest / (principal || 1)) * 100).toFixed(1)}%)`,
+      `• 72法则资产翻倍预估：约 ${results.doublingYears > 0 ? `${results.doublingYears} 年` : '未设定'}`,
+      `测算基准：标准连续离散复利指数模型 A = P × (1 + r/n)^(nt)。`,
+    ].join('\n')
+
+    try {
+      await navigator.clipboard.writeText(report)
+      setCopied(true)
+      trackEvent('copy', { tool: 'compound' })
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // ignore
+    }
+  }
+
   const faq = [
     {
       question: '复利与单利的本质差异是什么？',
@@ -98,7 +122,7 @@ export default function CompoundPage() {
           </p>
           <p>
             <strong>2. 资产翻倍 72 法则：</strong>
-            {'根据微积分对数泰勒展开近似，在收益率在 4%~12% 区间内，投资资产翻倍所需时间 t ≈ 72 / (r × 100)。'}
+            根据微积分对数泰勒展开近似，在收益率在 4%~12% 区间内，投资资产翻倍所需时间 t ≈ 72 / (r × 100)。
           </p>
           <p>
             <strong>3. 长期时间价值：</strong>在复利投资前期，本金占主要份额；在中后期，利息自身产生的再投资收益（复利效应）将逐渐超越本金总额。
@@ -107,11 +131,14 @@ export default function CompoundPage() {
       }
       howToSteps={howToSteps}
       faq={faq}
+      dataSources={[
+        { name: '经典金融数学复利终值方程 (Future Value of Lump Sum)', description: '离散复利指数增长与贴现模型' },
+      ]}
       disclaimer="本工具用于投资复利增长规律演示与财务规划测算。实际金融投资产品的收益率会随市场波动，投资有风险，入市需谨慎。"
     >
       <div className="space-y-6">
         {/* Controls Card */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
+        <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 sm:p-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
@@ -123,7 +150,7 @@ export default function CompoundPage() {
                 step="10000"
                 value={principal}
                 onChange={(e) => setPrincipal(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-mono focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-[#1E293B] bg-[#090D16] px-4 py-2.5 text-white font-mono focus:border-[#6366F1] focus:outline-none"
               />
             </div>
 
@@ -138,7 +165,7 @@ export default function CompoundPage() {
                 max="100"
                 value={rate}
                 onChange={(e) => setRate(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-mono focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-[#1E293B] bg-[#090D16] px-4 py-2.5 text-white font-mono focus:border-[#6366F1] focus:outline-none"
               />
             </div>
 
@@ -150,7 +177,7 @@ export default function CompoundPage() {
                 aria-label="投资期限"
                 value={years}
                 onChange={(e) => setYears(Number(e.target.value))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-medium focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-[#1E293B] bg-[#090D16] px-4 py-2.5 text-white font-medium focus:border-[#6366F1] focus:outline-none"
               >
                 {[1, 3, 5, 10, 15, 20, 25, 30].map((y) => (
                   <option key={y} value={y}>
@@ -168,7 +195,7 @@ export default function CompoundPage() {
                 aria-label="复利计息周期"
                 value={compoundFreq}
                 onChange={(e) => setCompoundFreq(Number(e.target.value))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-2.5 text-white font-medium focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-[#1E293B] bg-[#090D16] px-4 py-2.5 text-white font-medium focus:border-[#6366F1] focus:outline-none"
               >
                 <option value={12}>按月复利 (常见基金理财)</option>
                 <option value={4}>按季度复利</option>
@@ -179,9 +206,31 @@ export default function CompoundPage() {
           </div>
         </div>
 
+        {/* Results Header with Copy */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-[#CBD5E1]">复利终值与收益测算</h2>
+          <button
+            type="button"
+            onClick={handleCopyReport}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#1E293B] bg-[#141C2E] text-xs font-medium text-[#94A3B8] hover:text-white hover:border-[#6366F1]/50 transition-colors"
+          >
+            {copied ? (
+              <>
+                <Check className="h-3.5 w-3.5 text-[#10B981]" />
+                <span className="text-[#10B981]">已复制报告</span>
+              </>
+            ) : (
+              <>
+                <Copy className="h-3.5 w-3.5" />
+                <span>复制收益报告</span>
+              </>
+            )}
+          </button>
+        </div>
+
         {/* Results Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
+          <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 text-center">
             <p className="text-xs text-[#94A3B8] mb-1">期末本息总金额</p>
             <p className="text-3xl font-extrabold text-[#10B981] font-mono tracking-tight my-1">
               ¥{formatMoney(results.amount)}
@@ -191,7 +240,7 @@ export default function CompoundPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
+          <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 text-center">
             <p className="text-xs text-[#94A3B8] mb-1">累计复利利息收益</p>
             <p className="text-3xl font-extrabold text-[#F59E0B] font-mono tracking-tight my-1">
               +¥{formatMoney(results.totalInterest)}
@@ -201,7 +250,7 @@ export default function CompoundPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0D121F]/80 p-6 text-center">
+          <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6 text-center">
             <p className="text-xs text-[#94A3B8] mb-1">72法则资产翻倍预估</p>
             <p className="text-3xl font-extrabold text-[#38BDF8] font-mono tracking-tight my-1">
               约 {results.doublingYears > 0 ? `${results.doublingYears} 年` : '未设定'}
@@ -211,7 +260,7 @@ export default function CompoundPage() {
         </div>
 
         {/* Yearly Breakdown */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-6">
+        <div className="rounded-2xl border border-[#1E293B] bg-[#0F1523] p-6">
           <h3 className="font-semibold text-white text-sm sm:text-base mb-4">
             逐年复利增长轨迹明细表
           </h3>
@@ -224,7 +273,7 @@ export default function CompoundPage() {
               return (
                 <div
                   key={row.year}
-                  className="rounded-xl border border-[rgba(99,102,241,0.1)] bg-[#070A12]/60 p-3 sm:p-4"
+                  className="rounded-xl border border-[#1E293B] bg-[#141C2E]/60 p-3 sm:p-4"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-2 text-xs sm:text-sm">
                     <span className="font-medium text-[#94A3B8]">第 {row.year} 年末</span>
@@ -236,7 +285,7 @@ export default function CompoundPage() {
                     </span>
                   </div>
 
-                  <div className="h-2 w-full bg-[#111827] rounded-full overflow-hidden flex">
+                  <div className="h-2 w-full bg-[#090D16] rounded-full overflow-hidden flex border border-[#1E293B]/40">
                     <div
                       className="h-full bg-[#3B82F6]"
                       style={{ width: `${principalPct}%` }}

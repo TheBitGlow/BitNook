@@ -142,17 +142,45 @@ export default function DNSLookupPage() {
   }
 
   return (
-    <ToolLayout slug="dns">
+    <ToolLayout
+      toolSlug="dns"
+      principlesTitle="DNS-over-HTTPS (DoH) 加密查询技术原理"
+      principles={
+        <>
+          <p>
+            <strong>1. DoH (RFC 8484) 加密通信机制：</strong>
+            传统的 53 端口明文 UDP DNS 查询极易遭受局域网劫持、中间人监听与 DNS 污染。本工具基于行业标准 DNS-over-HTTPS (DoH) 协议，通过安全的 HTTPS/TLS 加密通道直接向权威递归解析器获取可信解析数据。
+          </p>
+          <p>
+            <strong>2. 客户端端到端直连解析：</strong>
+            查询由浏览器前端直接向 Cloudflare / Google / AliDNS 公开 JSON DoH 接口发起，无第三方中继截获，保证权威准确。
+          </p>
+        </>
+      }
+      howToSteps={[
+        '输入待解析的目标域名（如 example.com 或 github.com）。',
+        '选择所需的权威 DoH 节点（Cloudflare 1.1.1.1、Google 8.8.8.8 或 AliDNS 223.5.5.5）。',
+        '选择记录类型（A、AAAA、CNAME、MX、TXT、NS 或 ALL 全量）。',
+        '查看返回的真实应答记录、TTL 缓存时效，并可一键复制解析值。',
+      ]}
+      faq={[
+        {
+          question: '什么是 DNS 记录的 TTL？',
+          answer: 'TTL (Time to Live) 即生存时间，以秒为单位。它指示全球各地递归 DNS 服务器与本地操作系统缓存该条记录的最长有效时间，TTL 归零前解析节点通常不会重复向权威服务器发起重新拉取。',
+        },
+      ]}
+      disclaimer="本工具通过公共权威 DoH 服务进行域名解析诊断，查询结果反映对应公共解析服务器的全球权威视图。"
+    >
       <div className="space-y-6">
         {/* Search Header */}
-        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/60 p-6 shadow-xl space-y-4">
+        <div className="card p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">DoH 加密解析节点</label>
+              <label className="text-xs font-semibold text-text-secondary block mb-1">DoH 加密解析节点</label>
               <select
                 value={selectedProvider}
                 onChange={(e) => setSelectedProvider(e.target.value as ProviderKey)}
-                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
+                className="w-full px-3 py-2.5 bg-canvas border border-border rounded-xl text-text-primary text-xs font-medium focus:outline-none focus:border-accent-primary transition-colors"
               >
                 {Object.entries(PROVIDERS).map(([key, info]) => (
                   <option key={key} value={key}>
@@ -162,7 +190,7 @@ export default function DNSLookupPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">解析记录类型</label>
+              <label className="text-xs font-semibold text-text-secondary block mb-1">解析记录类型</label>
               <div className="flex flex-wrap gap-1.5 pt-0.5">
                 {RECORD_TYPES.map((t) => (
                   <button
@@ -170,8 +198,8 @@ export default function DNSLookupPage() {
                     onClick={() => setSelectedType(t)}
                     className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                       selectedType === t
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                        ? 'bg-accent-primary text-white shadow-sm'
+                        : 'bg-canvas text-text-muted hover:text-text-primary border border-border'
                     }`}
                   >
                     {t}
@@ -189,13 +217,13 @@ export default function DNSLookupPage() {
                 onChange={(e) => setDomainInput(e.target.value)}
                 placeholder="输入目标域名，如 cloudflare.com 或 baidu.com"
                 onKeyDown={(e) => e.key === 'Enter' && handleQuery()}
-                className="w-full pl-4 pr-10 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full px-4 py-3 bg-canvas border border-border rounded-xl text-text-primary font-mono text-sm focus:outline-none focus:border-accent-primary transition-colors"
               />
             </div>
             <button
               onClick={handleQuery}
               disabled={loading}
-              className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2 transition shadow-md shadow-indigo-600/20"
+              className="btn-primary px-6 py-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
             >
               <Search className="w-4 h-4" />
               <span>{loading ? '正在通过 DoH 查询...' : '执行真实 DNS 查询'}</span>
@@ -203,7 +231,7 @@ export default function DNSLookupPage() {
           </div>
 
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-800 text-rose-300 text-xs">
+            <div className="p-3 rounded-xl bg-danger/10 border border-danger/30 text-danger text-xs">
               {errorMsg}
             </div>
           )}
@@ -211,19 +239,19 @@ export default function DNSLookupPage() {
 
         {/* Results List */}
         {records.length > 0 && (
-          <div className="rounded-2xl border border-slate-700/60 bg-slate-900/60 p-6 space-y-4 shadow-xl">
-            <div className="flex flex-wrap justify-between items-center gap-2">
-              <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                <Globe className="w-4 h-4 text-indigo-400" />
+          <div className="card p-6 space-y-4">
+            <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-border">
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                <Globe className="w-4 h-4 text-accent-primary" />
                 <span>DNS 解析应答记录 ({records.length} 条)</span>
               </h3>
-              <div className="flex items-center gap-4 text-xs text-slate-400">
+              <div className="flex items-center gap-4 text-xs text-text-muted">
                 <span className="flex items-center gap-1">
-                  <Server className="w-3.5 h-3.5 text-indigo-400" />
+                  <Server className="w-3.5 h-3.5 text-accent-primary" />
                   {records[0]?.provider}
                 </span>
                 <span className="flex items-center gap-1 font-mono">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <Clock className="w-3.5 h-3.5 text-text-muted" />
                   {records[0]?.timestamp}
                 </span>
               </div>
@@ -232,7 +260,7 @@ export default function DNSLookupPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-800 text-slate-400">
+                  <tr className="border-b border-border text-text-muted">
                     <th className="py-2.5 px-3">记录类型</th>
                     <th className="py-2.5 px-3">查询主机名</th>
                     <th className="py-2.5 px-3">解析值 (Data)</th>
@@ -240,26 +268,26 @@ export default function DNSLookupPage() {
                     <th className="py-2.5 px-3 text-center">操作</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-border/50">
                   {records.map((r, i) => {
                     const isCopied = copiedKey === `rec-${i}`
                     return (
-                      <tr key={i} className="hover:bg-slate-950/50 transition">
+                      <tr key={i} className="hover:bg-surface-elevated transition">
                         <td className="py-2.5 px-3">
-                          <span className="px-2 py-0.5 rounded font-mono font-bold text-xs bg-indigo-950 text-indigo-300 border border-indigo-800/60">
+                          <span className="px-2 py-0.5 rounded font-mono font-bold text-xs bg-accent-primary/10 text-accent-primary border border-accent-primary/20">
                             {r.type}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 font-mono text-slate-300">{r.name}</td>
-                        <td className="py-2.5 px-3 font-mono text-white break-all max-w-md">{r.data}</td>
-                        <td className="py-2.5 px-3 text-right font-mono text-slate-400">{r.TTL}s</td>
+                        <td className="py-2.5 px-3 font-mono text-text-secondary">{r.name}</td>
+                        <td className="py-2.5 px-3 font-mono text-text-primary break-all max-w-md font-medium">{r.data}</td>
+                        <td className="py-2.5 px-3 text-right font-mono text-text-muted">{r.TTL}s</td>
                         <td className="py-2.5 px-3 text-center">
                           <button
                             onClick={() => copyToClipboard(r.data, `rec-${i}`)}
-                            className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition"
+                            className="p-1.5 text-text-muted hover:text-text-primary rounded hover:bg-surface-elevated transition"
                             title="复制解析值"
                           >
-                            {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            {isCopied ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                           </button>
                         </td>
                       </tr>

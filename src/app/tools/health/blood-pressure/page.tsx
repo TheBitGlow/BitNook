@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import ToolLayout from '@/components/tools/ToolLayout'
-import { Activity, Plus, Trash2, HeartPulse, ShieldAlert, CheckCircle2 } from 'lucide-react'
+import { Plus, Trash2, HeartPulse } from 'lucide-react'
 
 interface BPRecord {
   id: string
@@ -69,47 +69,47 @@ export default function BloodPressurePage() {
     if (sys >= 180 || dia >= 110) {
       return {
         level: '3级高血压（重度）',
-        color: '#DC2626',
-        bg: 'rgba(220,38,38,0.15)',
+        colorClass: 'text-red-700 dark:text-red-400',
+        bgClass: 'bg-red-500/10 border-red-500/30',
         advice: '血压显著升高，需高度警惕并及时遵医嘱就医评估。',
       }
     }
     if (sys >= 160 || dia >= 100) {
       return {
         level: '2级高血压（中度）',
-        color: '#EF4444',
-        bg: 'rgba(239,68,68,0.15)',
+        colorClass: 'text-rose-600 dark:text-rose-400',
+        bgClass: 'bg-rose-500/10 border-rose-500/30',
         advice: '建议咨询专科医师，配合生活方式干预与规范化评估。',
       }
     }
     if (sys >= 140 || dia >= 90) {
       return {
         level: '1级高血压（轻度）',
-        color: '#F59E0B',
-        bg: 'rgba(245,158,11,0.15)',
+        colorClass: 'text-amber-600 dark:text-amber-400',
+        bgClass: 'bg-amber-500/10 border-amber-500/30',
         advice: '建议低盐低脂饮食、戒烟限酒、规律监测，并在医生指导下随访。',
       }
     }
     if (sys >= 130 || dia >= 85) {
       return {
         level: '正常高值血压',
-        color: '#EAB308',
-        bg: 'rgba(234,179,8,0.15)',
+        colorClass: 'text-yellow-600 dark:text-yellow-400',
+        bgClass: 'bg-yellow-500/10 border-yellow-500/30',
         advice: '处于临界高值，建议增加有氧运动、改善作息，定期监测。',
       }
     }
     if (sys >= 90 && dia >= 60) {
       return {
         level: '正常健康血压',
-        color: '#10B981',
-        bg: 'rgba(16,185,129,0.15)',
+        colorClass: 'text-emerald-600 dark:text-emerald-400',
+        bgClass: 'bg-emerald-500/10 border-emerald-500/30',
         advice: '处于适宜健康血压范围，请继续保持良好生活习惯。',
       }
     }
     return {
       level: '血压偏低',
-      color: '#38BDF8',
-      bg: 'rgba(56,189,248,0.15)',
+      colorClass: 'text-blue-600 dark:text-blue-400',
+      bgClass: 'bg-blue-500/10 border-blue-500/30',
       advice: '若伴有头晕、乏力等不适，建议就医排查体位性低血压或贫血等原因。',
     }
   }
@@ -137,7 +137,7 @@ export default function BloodPressurePage() {
   const howToSteps = [
     '使用合格的上臂式电子血压计测量后，分别输入收缩压（高压）与舒张压（低压）。',
     '可选择性填入测量时的脉搏心率与测量场景（如晨起、服药后、睡前）。',
-    '点击【保存至本地记录】，生成个人长期随访曲线日志。',
+    '点击【保存到本地健康日志】，生成个人长期随访曲线日志。',
     '对照《中国高血压防治指南》标准色卡，查看血压所处的分级参考区间。',
   ]
 
@@ -171,10 +171,10 @@ export default function BloodPressurePage() {
     >
       <div className="space-y-6">
         {/* Input Card */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.18)] bg-[#0B0F19]/80 p-6 sm:p-8 backdrop-blur-md">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
+        <div className="card p-6 sm:p-8 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 收缩压 (高压, mmHg)
               </label>
               <input
@@ -183,13 +183,13 @@ export default function BloodPressurePage() {
                 max="260"
                 value={systolic}
                 onChange={(e) => setSystolic(Number(e.target.value))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-center text-white focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-2xl font-bold font-mono text-center text-text-primary focus:border-accent-primary focus:outline-none transition-colors"
               />
-              <p className="mt-1 text-center text-[11px] text-[#64748B]">参考范围 90 ~ 139</p>
+              <p className="mt-1 text-center text-[11px] text-text-muted">参考范围 90 ~ 139</p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 舒张压 (低压, mmHg)
               </label>
               <input
@@ -198,13 +198,13 @@ export default function BloodPressurePage() {
                 max="180"
                 value={diastolic}
                 onChange={(e) => setDiastolic(Number(e.target.value))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-center text-white focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-2xl font-bold font-mono text-center text-text-primary focus:border-accent-primary focus:outline-none transition-colors"
               />
-              <p className="mt-1 text-center text-[11px] text-[#64748B]">参考范围 60 ~ 89</p>
+              <p className="mt-1 text-center text-[11px] text-text-muted">参考范围 60 ~ 89</p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                 脉搏 (次/分, 可选)
               </label>
               <input
@@ -213,9 +213,9 @@ export default function BloodPressurePage() {
                 max="220"
                 value={pulse}
                 onChange={(e) => setPulse(Number(e.target.value))}
-                className="w-full rounded-xl border border-[rgba(99,102,241,0.18)] bg-[#070A12] px-4 py-3 text-2xl font-bold font-mono text-center text-[#38BDF8] focus:border-[#6366F1] focus:outline-none"
+                className="w-full rounded-xl border border-border bg-canvas px-4 py-3 text-2xl font-bold font-mono text-center text-accent-primary focus:border-accent-primary focus:outline-none transition-colors"
               />
-              <p className="mt-1 text-center text-[11px] text-[#64748B]">静息心率约 60 ~ 100</p>
+              <p className="mt-1 text-center text-[11px] text-text-muted">静息心率约 60 ~ 100</p>
             </div>
           </div>
 
@@ -225,12 +225,12 @@ export default function BloodPressurePage() {
               placeholder="备注标签（如：晨起空腹、服药后、运动后等）"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="flex-1 rounded-xl border border-[rgba(99,102,241,0.15)] bg-[#070A12] px-4 py-2.5 text-xs text-white placeholder-[#475569] focus:outline-none focus:border-[#6366F1]"
+              className="flex-1 rounded-xl border border-border bg-canvas px-4 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary transition-colors"
             />
             <button
               type="button"
               onClick={saveRecord}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-[#6366F1] px-5 py-2.5 text-xs font-semibold text-white hover:bg-[#5558E3] transition-all shadow-md"
+              className="btn-primary flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm"
             >
               <Plus className="h-4 w-4" />
               保存到本地健康日志
@@ -240,49 +240,44 @@ export default function BloodPressurePage() {
 
         {/* Current Classification Banner */}
         <div
-          className="rounded-2xl border p-6 text-center transition-all"
-          style={{
-            borderColor: currentClassification.color,
-            backgroundColor: currentClassification.bg,
-          }}
+          className={`rounded-2xl border p-6 text-center transition-all ${currentClassification.bgClass}`}
         >
-          <p className="text-xs uppercase tracking-wider text-[#94A3B8] mb-1">
+          <p className="text-xs uppercase tracking-wider text-text-muted mb-1">
             当前数值对照结果（指南分级）
           </p>
           <p
-            className="text-3xl font-extrabold tracking-tight my-2"
-            style={{ color: currentClassification.color }}
+            className={`text-3xl font-extrabold tracking-tight my-2 ${currentClassification.colorClass}`}
           >
             {currentClassification.level}
           </p>
-          <p className="text-xs sm:text-sm text-[#CBD5E1] max-w-lg mx-auto">
+          <p className="text-xs sm:text-sm text-text-secondary max-w-lg mx-auto">
             {currentClassification.advice}
           </p>
         </div>
 
         {/* History Log Section */}
-        <div className="rounded-2xl border border-[rgba(99,102,241,0.15)] bg-[#0B0F19]/80 p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="card p-6 space-y-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <HeartPulse className="h-5 w-5 text-[#EF4444]" />
-              <h3 className="font-semibold text-white text-sm sm:text-base">
+              <HeartPulse className="h-5 w-5 text-rose-500" />
+              <h3 className="font-semibold text-text-primary text-sm sm:text-base">
                 本地血压历史记录 ({records.length} 条)
               </h3>
             </div>
             {records.length > 0 && (
-              <span className="text-[11px] text-[#64748B]">存储于当前浏览器</span>
+              <span className="text-[11px] text-text-muted">存储于当前浏览器</span>
             )}
           </div>
 
           {records.length === 0 ? (
-            <div className="py-8 text-center text-xs text-[#64748B]">
+            <div className="py-8 text-center text-xs text-text-muted">
               暂无保存的记录，输入血压数值后点击上方按钮即可本地存盘
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead>
-                  <tr className="border-b border-[rgba(99,102,241,0.15)] text-[#64748B]">
+                  <tr className="border-b border-border text-text-muted">
                     <th className="py-2.5 px-3">记录时间</th>
                     <th className="py-2.5 px-3 text-right">高压 / 低压</th>
                     <th className="py-2.5 px-3 text-right">心率</th>
@@ -291,34 +286,33 @@ export default function BloodPressurePage() {
                     <th className="py-2.5 px-3 text-right">操作</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[rgba(99,102,241,0.06)] font-mono">
+                <tbody className="divide-y divide-border/50 font-mono">
                   {records.map((r) => {
                     const cls = getBPClassification(r.systolic, r.diastolic)
                     return (
-                      <tr key={r.id} className="hover:bg-[#1E293B]/20 transition-colors">
-                        <td className="py-2.5 px-3 text-[#94A3B8]">{r.date}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-white">
-                          {r.systolic} / {r.diastolic} <span className="text-[10px] text-[#64748B]">mmHg</span>
+                      <tr key={r.id} className="hover:bg-surface-elevated transition-colors">
+                        <td className="py-2.5 px-3 text-text-muted">{r.date}</td>
+                        <td className="py-2.5 px-3 text-right font-bold text-text-primary">
+                          {r.systolic} / {r.diastolic} <span className="text-[10px] text-text-muted font-normal">mmHg</span>
                         </td>
-                        <td className="py-2.5 px-3 text-right text-[#38BDF8]">
+                        <td className="py-2.5 px-3 text-right text-accent-primary">
                           {r.pulse ? `${r.pulse} bpm` : '-'}
                         </td>
                         <td className="py-2.5 px-3 font-sans">
                           <span
-                            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                            style={{ color: cls.color, backgroundColor: cls.bg }}
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium border ${cls.bgClass} ${cls.colorClass}`}
                           >
                             {cls.level}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-[#94A3B8] font-sans truncate max-w-[120px]">
+                        <td className="py-2.5 px-3 text-text-secondary font-sans truncate max-w-[120px]">
                           {r.note || '-'}
                         </td>
                         <td className="py-2.5 px-3 text-right">
                           <button
                             type="button"
                             onClick={() => deleteRecord(r.id)}
-                            className="text-[#64748B] hover:text-[#EF4444] transition-colors p-1"
+                            className="text-text-muted hover:text-danger transition-colors p-1"
                             title="删除"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
